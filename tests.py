@@ -2007,6 +2007,7 @@ IXXX-answer
             self.check('.question BUTTON').click()
         def check_index(value):
             index = self.check('.questions:nth-child(2)').get_attribute('innerHTML')
+            index = index.replace(' style=""', '')
             if index != '<div class="tips"><div>Get a single random</div><div>Check that random_version() does not returns twice the same</div></div><style></style>' + value:
                 raise ValueError(
                     "\nExpected: " + value + "\n" + "\nComputed: " + index)

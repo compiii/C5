@@ -7,6 +7,7 @@ class Question:
     all_tests_are_fine = True
     to_test = []
     to_test_index = 0
+    nb_version = 0       # Number of question alternatives. Used for index coloring
     round = None         # Version of the question +1 at each question restart
     seed = None          # The random seed (common to each version)
     index = None         # in the questions list of the session
@@ -58,7 +59,7 @@ class Question:
             ['EXIT', "a message.", a_boolean_function],
                    The parameter contain process exit informations and files.
             ['IN'  , "a message.", a_string_function],
-                   The process input is feed with the returned string 
+                   The process input is feed with the returned string
             ['OUT' , "a message.", a_boolean_function],
                    The parameter contains a chunk of the process output.
             ['MSG' , "a message (not to be colored)"],
@@ -195,7 +196,8 @@ class Question:
             * the student fails to answer a very long time.
         You should not call it when all the versions have been displayed.
         """
-        return '<button onclick="ccccc.new_round()">' + label + '</button>'
+        return ('<button style="font-size: 1em; padding: 5px 5px;" '
+                + 'onclick="ccccc.new_round()">' + label + '</button>')
     def random_seed(self, seed):
         """Called by the worker before calling default_answer/question/tester
         to restart the random sequences.
@@ -209,7 +211,7 @@ class Question:
         self.random_called = False
     def random(self, the_round=None):
         """Returns the next random number in [0;1[
-        If 'the_round' is None, use the current the_round random serie.        
+        If 'the_round' is None, use the current the_round random serie.
         """
         if the_round is None:
             the_round = self.round
@@ -254,6 +256,15 @@ class Question:
                 return choices[(self.round + 1) % nbr_choices]
         self.random_called = False
         return choices[self.round % nbr_choices]
+
+    def get_style(self):
+        """Return the style of the question index.
+        For example to highlight the fact they are remaining
+        question alternatives to answer.
+        """
+        if self.question_yet_solved() and self.round < self.nb_version - 1 :
+            return 'background: #90caf9;'
+        return ''
 
 
 def LOAD_QUESTION(filename):

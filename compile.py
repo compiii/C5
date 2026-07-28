@@ -363,7 +363,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         """Used by the subclass"""
         texts = ['<style></style>']
         tips = []
-        for i, _ in enumerate(self.questions):
+        for i, quest in enumerate(self.questions):
             if self.allow_goto:
                 link = 'onclick="ccccc.goto_question(' + i + ')"'
             else:
@@ -384,7 +384,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
                     link = ''
             if self.allow_tip:
                 tips.append('<div>' + self.escape(self.questions[i].__doc__) + '</div>')
-            texts.append('<div class="' + ' '.join(html_class) + '" ' + link + '>'
-                + str(i+1) + '</div>')
-        return ('<div class="questions"><div class="tips">' + ''.join(tips) + '</div>'
-            + ''.join(texts) + '</div>')
+            texts.append('<div class="' + ' '.join(html_class)
+                          + '" style="' + quest.get_style()
+                          + '" ' + link + '>' + str(i+1) + '</div>')
+        return ('<div class="questions"><div class="tips">' + ''.join(tips) + '</div>' + ''.join(texts) + '</div>')

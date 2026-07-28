@@ -34,6 +34,7 @@ Object.defineProperty(String.prototype, 'upper',
 Object.defineProperty(String.prototype, 'isdigit',
                       {'enumerable': False, 'value': isdigit})
 String.prototype.strip = String.prototype.trim
+String.prototype.find = String.prototype.indexOf
 
 def title():
     """Nearly compatible with Python"""
