@@ -24,9 +24,14 @@ def dict_items():
 DIGITS = RegExp('^[0-9]+$')
 def isdigit():
     """Compatible with Python"""
-    return eval('this').match(DIGITS)
+    return eval('this').match(DIGITS) # pylint: disable=eval-used
 Object.defineProperty(Object.prototype, 'Items',
                       {'enumerable': False, 'value': dict_items})
+def count(item):
+    return len(eval('this').split(item)) - 1 # pylint: disable=eval-used
+Object.defineProperty(String.prototype, 'count',
+                      {'enumerable': False, 'value': count})
+
 Object.defineProperty(String.prototype, 'lower',
                       {'enumerable': False, 'value': String.prototype.toLowerCase})
 Object.defineProperty(String.prototype, 'upper',
@@ -40,7 +45,7 @@ def title():
     """Nearly compatible with Python"""
     uppercased = ''
     first = True
-    for i in eval('this'):
+    for i in eval('this'): # pylint: disable=eval-used
         lower = i.lower()
         upper = i.upper()
         if lower == upper:
@@ -58,8 +63,7 @@ Object.defineProperty(String.prototype, 'title',
 
 def rjust(nr):
     """Compatible with Python"""
-    THIS = eval('this')
-    return ('                       '+THIS)[-nr:]
+    return ('                       '+eval('this'))[-nr:] # pylint: disable=eval-used
 Object.defineProperty(String.prototype, 'rjust',
                       {'enumerable': False, 'value': rjust})
 
