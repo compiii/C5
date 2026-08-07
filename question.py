@@ -29,9 +29,14 @@ class Question:
         self.display(
             '<li class="' + html_class + '">' + txt + '</li>')
     def check(self, text, needle_message):
-        """Append a message in 'output' for each needle_message"""
+        """Append a message in 'output' for each needle in the message.
+        If the needle starts with '{{{!}}}' the test is reverted.
+        """
         for needle, message in needle_message:
-            self.message(text.match(RegExp(needle)), message)
+            if needle.startswith('{{{!}}}'):
+                self.message(not text.match(RegExp(needle[7:])), message)
+            else:
+                self.message(text.match(RegExp(needle)), message)
     def set_question(self, index):
         """Change question"""
         self.worker.current_question = index
