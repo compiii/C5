@@ -47,7 +47,7 @@ class Session(Compile): # pylint: disable=too-many-instance-attributes
                 if self.options['compiler'] == 'cargo':
                     previous_line = ''
                     for line in data[1].split('\n'):
-                        location = line.split('  --> src/main.rs:')
+                        location = line.split(' --> src/main.rs:')
                         if len(location) == 2:
                             try:
                                 line_nr, col_nr = location[1].split(':')
