@@ -2675,7 +2675,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     self.update_grading(GRADES)
             self.hide_expected_answer()
             self.update_stars()
-
+            self.compiler.innerHTML = self.executor.innerHTML = ''
             document.getElementById('editor_name').innerHTML = '<BLOCTITLE>' + self.options['editor_title'] + '</BLOCTITLE>'
 
         elif what in ('error', 'warning'):
