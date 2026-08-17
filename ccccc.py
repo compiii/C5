@@ -949,6 +949,7 @@ class CCCCC: # pylint: disable=too-many-public-methods
 
     def compilation_run(self, memorize_input=True):
         """Run one compilation"""
+        trace('CCCCC: compilation_run', self.compile_now)
         if memorize_input:
             self.memorize_inputs()
         self.record_pending_goto()
@@ -1982,7 +1983,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
 
     def onkeydown(self, event): # pylint: disable=too-many-branches
         """Key down"""
-        trace('CCCCC onkeydown', self.allow_edit, self.compositing, event)
+        trace('CCCCC: onkeydown', self.allow_edit, self.compositing, self.compile_now, event)
         if self.compositing:
             return
         if not self.allow_edit or event.key == 'F12' or event.key == 'F11' and not GRADING and self.options['checkpoint']:
@@ -2262,6 +2263,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             stop_event(event)
 
         self.overlay_hide()
+        trace('CCCCC: onkeydown done', self.compile_now)
     def compositionstart(self, _event):
         self.update_source()
         self.update_cursor_position_now()

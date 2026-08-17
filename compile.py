@@ -127,7 +127,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         if self.current_question != 0 or quest.last_answer:
             quest.random_restart()
             self.source = quest.last_answer or quest.default_answer()
-            self.start_question()
+            # self.start_question()
 
     def disable_goto(self):
         """Call to disable goto"""
