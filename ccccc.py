@@ -949,7 +949,9 @@ class CCCCC: # pylint: disable=too-many-public-methods
 
     def compilation_run(self, memorize_input=True):
         """Run one compilation"""
-        trace('CCCCC: compilation_run', self.compile_now)
+        trace('CCCCC: compilation_run', self.compile_now, self.init_done, not self.question.firstChild)
+        if not self.question.firstChild:
+            return
         if memorize_input:
             self.memorize_inputs()
         self.record_pending_goto()
