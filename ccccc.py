@@ -2658,6 +2658,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     self.set_editor_content(self.journal_question.get_current_default())
             else:
                 self.set_editor_content(JOURNAL.content)
+            self.tester.innerHTML = ''
             self.compilation_run()
             self.canvas.parentNode.scrollLeft = max(
                 0, self.tree_canvas() - self.canvas.parentNode.offsetWidth + 40)
