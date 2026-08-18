@@ -285,7 +285,6 @@ class CCCCC: # pylint: disable=too-many-public-methods
     eval_error_recorded = False
     content_old = None
     wait_indent = False
-    disable_on_paste = 0
     coach = None
     coach_previous_position = 0
     current_selection = ''
@@ -1497,6 +1496,12 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         self.mouse_pressed = -1
         selection = window.getSelection()
         if not self.editor.contains(selection.anchorNode) or not self.editor.contains(event.target):
+            if self.allow_edit and (
+                self.question.contains(selection.anchorNode) and self.question.contains(event.target)
+                or self.executor.contains(selection.anchorNode) and self.executor.contains(event.target)
+                or self.compiler.contains(selection.anchorNode) and self.compiler.contains(event.target)
+            ):
+                self.current_selection = ''
             return
         # Selection in source code
         if event.button == 1:
@@ -1507,7 +1512,6 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 self.insert_text_in_source(text)
                 self.set_editor_content(self.source, self.cursor_position, move_on_screen=False)
                 self.update_source()
-            self.disable_on_paste = millisecs()
             stop_event(event)
             return
         self.save_current_selection()
@@ -1625,10 +1629,6 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             stop_event(event)
             return
         if self.add_comments:
-            stop_event(event)
-            return
-        if millisecs() - self.disable_on_paste < 100:
-            # Texte pasted from middle button
             stop_event(event)
             return
         text = (event.clipboardData or event.dataTransfer).getData("text/plain")
