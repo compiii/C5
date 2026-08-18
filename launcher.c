@@ -52,6 +52,7 @@ void setup_env(char **argv) {
     setenv("LANG", "fr_FR.UTF-8", 1);
     setenv("LD_PRELOAD", "/tmp/libsandbox.so", 1);
     setenv("SECCOMP_SYSCALL_ALLOW", argv[1], 1);
+    // setenv("SECCOMP_DEFAULT_ACTION", "log", 1); // Look at dmesg for syscall numbers
 }
 
 int main(int argc, char **argv)

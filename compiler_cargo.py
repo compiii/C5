@@ -14,7 +14,8 @@ ALWAYS_ALLOWED = {  # Allowed system call for cargo project
                 "execve", "brk", "mmap", "access", "openat", "fstat", "close", "read", "pread64",
                 "arch_prctl", "set_tid_address", "set_robust_list", "rseq", "mprotect", "prlimit64",
                 "getrandom", "munmap", "poll", "rt_sigaction", "lseek", "sched_getaffinity", "sigaltstack",
-                "gettid", "write", "exit_group", "newfstatat"
+                "gettid", "write", "exit_group", "newfstatat",
+                "clone3", "rt_sigprocmask", "futex", "madvise", "exit", # For threading
                 }
 
 
@@ -115,22 +116,10 @@ class Cargo(Compiler):
         if not session.allowed_str:
             session.log("RUNNING not allowed")
             return
-
-
         session.log(
             f'./launcher {session.allowed_str} {session.uid} '
-            f'{session.home} {session.max_time} {session.binary_path}'
+            f'{session.home} {session.max_time} target/debug/home'
         )
-
-        # Tests
-        print("DEBUG launcher args:")
-        print(f"  allowed_str={session.allowed_str}")
-        print(f"  uid={session.uid}")
-        print(f"  home={session.home}")
-        print(f"  max_time={session.max_time}")
-        print(f"  binary={session.binary_path}", flush=True)
-
-        # Same as GCC
         pathlib.Path(session.home).mkdir(exist_ok=True)
         for filename, content in session.filetree_in:
             filename = pathlib.Path(f"{session.home}/{filename}")
