@@ -86,14 +86,15 @@ class Question:
         t += '}</style>'
         self.display(t)
     def next_test(self):
-        while True:
+        if self.to_test[self.to_test_index]:
             self.to_test_index += 1
-            if not self.to_test[self.to_test_index]:
-                return None
-            if self.to_test[self.to_test_index][0] != 'MSG':
-                return self.to_test[self.to_test_index]
+            return self.to_test[self.to_test_index]
     def get_test(self):
-        return self.all_tests_are_fine and self.to_test[self.to_test_index]
+        if not self.all_tests_are_fine:
+            return
+        while self.to_test[self.to_test_index] and self.to_test[self.to_test_index][0] == 'MSG':
+            self.to_test_index += 1
+        return self.to_test[self.to_test_index]
     def tester_realtime_init(self):
         """
         Initialize realtime tester.
