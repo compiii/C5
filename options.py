@@ -112,7 +112,7 @@ DEFAULT_COURSE_OPTIONS = [
     ['coach_mouse_short_move_distance'      ,  3, "Detect mouse short move: dx+dy distance in keystrokes (0=disabled)"],
     ['coach_mouse_line_bounds_min_move'     ,  2, "Detect mouse to line begin/end: min chars moved (0=disabled)"],
     ['coach_retype_after_delete_chars'      , 10, "Detect text retyped after deletion: characters (0=disabled)"],
-    ['coach_many_horizontal_arrows_threshold', 20, "Detect many ← → successive strokes (0=disabled)"],
+    ['coach_many_horizontal_arrows_threshold', 30, "Detect many ← → successive strokes (0=disabled)"],
     ['coach_arrow_then_backspace_count'     ,  3, "Detect → then Backspace: repetitions (0=disabled)"],
     ['coach_many_vertical_arrows_threshold' , 50, "Detect many ↑ ↓ successive strokes (0=disabled)"],
     ['coach_scroll_full_document_edge_lines',  3, "Detect long scroll until X lines to the top/bottom "],
