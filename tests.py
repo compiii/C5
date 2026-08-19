@@ -2004,7 +2004,11 @@ IXXX-answer
         time.sleep(0.2)
 
         def next_round():
-            self.check('.question BUTTON').click()
+            time.sleep(0.2)
+            try:
+                self.check('.question BUTTON').click()
+            except: # pylint: disable=bare-except
+                self.check('.question BUTTON').click()
         def check_index(value):
             index = self.check('.questions:nth-child(2)').get_attribute('innerHTML')
             index = index.replace(' style=""', '')
@@ -2012,7 +2016,11 @@ IXXX-answer
                 raise ValueError(
                     "\nExpected: " + value + "\n" + "\nComputed: " + index)
         def try_answer(title):
-            answer = self.check('#test_answer').get_attribute('textContent')
+            try:
+                answer = self.check('#test_answer').get_attribute('textContent')
+            except: # pylint: disable=bare-except
+                time.sleep(0.2)
+                answer = self.check('#test_answer').get_attribute('textContent')
             editor = self.move_cursor('.editor')
             source = editor.get_attribute('innerHTML')
             self.driver.execute_script("arguments[0].innerHTML = arguments[1]",
