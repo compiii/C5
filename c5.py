@@ -35,7 +35,7 @@ C5_LDAP_LOGIN = C5_LDAP_PASSWORD = C5_LDAP_BASE = C5_LDAP_ENCODING = C5_CUSTOMIZ
 C5_ROOT = ''
 
 CONFIGURATIONS = (
-    ('C5_HOST'         ,'Production host (for SSH)'            , local_ip()),
+    ('C5_HOST'         ,'Production host (for SSH)'            , socket.getfqdn(local_ip())),
     ('C5_IP'           ,'For Socket IP binding'                , local_ip()),
     ('C5_ROOT'         ,'login allowed to sudo'                , 'root'),
     ('C5_LOGIN'        ,'user C5 login'                        , getpass.getuser()),
@@ -44,7 +44,7 @@ CONFIGURATIONS = (
     ('C5_MAIL'         ,"To create Let's Encrypt certificate"  , lambda: 'root@' + C5_ROOT),
     ('C5_CERT'         ,"SS: C5/SSL directory, NGINX: NGINX"   , 'SS'),
     ('C5_LOCAL'        ,'Run on local host'                    , 1),
-    ('C5_URL'          ,'Browser visible address'              , ''),
+    ('C5_URL'          ,'Browser user visible address'         , lambda: f'{C5_HOST}:{C5_HTTP}'),
     ('C5_DIR'          ,'C5 install directory name'            , 'C5'),
     ('C5_WEBSOCKET'    ,'Browser visible address for WebSocket', lambda: f'{C5_HOST}:{C5_SOCK}'),
     ('C5_REDIRECT'     ,'CAS redirection'                      , ''), # https://cas.univ-lyon1.fr/login?service=
@@ -309,6 +309,7 @@ With Firefox:
             tail +\$HTTP_SERVER LOGS/http_server
             echo ============================== Last lines of compile_server logs:
             tail +\$COMPILE_SERVER LOGS/compile_server
+            echo ============================== Visit : https://{C5_URL}
         fi
         """,
     'stop': r"""#C5_LOGIN

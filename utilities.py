@@ -1095,7 +1095,7 @@ class Config: # pylint: disable=too-many-instance-attributes
             'ticket_ttl': self.ticket_ttl,
             'computers': [],
             'ips_per_room': {"Nautibus,TP3": "b710l0301.univ-lyon1.fr,20,10 b710l0302.univ-lyon1.fr,22,10"},
-            'student': '[0-9][0-9]$',
+            'student': 'It is a student login if this regexp is matched',
             'messages': {
                 'unknown': "Cette session n'existe pas",
                 'checkpoint':
@@ -1203,13 +1203,13 @@ class Config: # pylint: disable=too-many-instance-attributes
         return not self.is_student(login)
     def is_admin(self, login:str) -> bool:
         """Returns True if it is an admin login"""
-        return login in self.masters or login in self.roots
+        return login in self.masters or self.is_root(login)
     def is_author(self, login:str) -> bool:
         """Returns True if it is an author login"""
-        return login in self.authors or login in self.masters or login in self.roots
+        return login in self.authors or self.is_admin(login)
     def is_mapper(self, login:str) -> bool:
         """Returns True if it is a mapper login"""
-        return login in self.mappers or login in self.masters or login in self.roots
+        return login in self.mappers or self.is_admin(login)
     def is_student(self, login:str) -> bool:
         """The user is a student"""
         return bool(self.student.search(login))

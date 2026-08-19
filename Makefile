@@ -6,14 +6,14 @@ JS/%.js: JS %.py compatibility.py options.py compile.py question.py xxx_local.py
 %.js: %.py
 	@./py2js $* || true
 
+default:all
+	@./c5.py open # Open page on browser
+
 xxx_local.py:common.py coach.py $(C5_CUSTOMIZE)
 	cat common.py coach.py $(C5_CUSTOMIZE) >$@
 
 $(C5_CUSTOMIZE):
 	echo '"""Redefine «common.py» functions here (as in «local_ucbl.py»)"""' >$@
-
-default:all
-	@./c5.py open # Open page on browser
 
 JS:
 	mkdir JS

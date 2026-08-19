@@ -257,7 +257,7 @@
         <li> Vous composez votre sujet dans un fichier comme par exemple
                 <tt>CodeUE_TD_01.py</tt> les «_» représentent
                 un séparateur comme «/» et permettent d'afficher
-                une abrescence de sujets aux étudiants.
+                une arborescence de sujets aux étudiants.
         <li>
             Chaque sujet contient un ensemble de questions s'enchaînant successivement.
     </ul>
@@ -284,10 +284,10 @@
             La méthode précédente ne permet que de faire des champs
             initialement vides, pour avoir des valeurs par défaut
             on indique <tt>&lt;£2026£&gt;</tt> pour des chiffres
-            et <tt>&lt;§aB5#&gt;</tt> pour des caractères quelconques.
+            et <tt>&lt;#aB5#&gt;</tt> pour des caractères quelconques.
             Les 2 zones précédentes permettent la modification de 8 caractères
             afin de ne pas casser les alignements verticaux car
-            les délimiteurs sont remplacés par des espaces.
+            les délimiteurs sont remplacés par des espaces modifiables.
         </li>
         <li> <tt>question(self)</tt> calcule le texte de la question au format HTML.
         </li>
@@ -299,7 +299,7 @@
         </li>
         <li>
             <tt>expectations(self)</tt> permet de
-            paliez aux limitations de <tt>tester</tt> et autorise plusieurs lancements
+            pallier aux limitations de <tt>tester</tt> et autorise plusieurs lancements
             du programme avec des saisies utilisateurs différentes.
             Elle retourne une description de l'exécution attendue :
 <pre>    def expectations(self):
@@ -372,6 +372,17 @@
         sont proposées à l'étudiant :
     </p>
     <pre>Session([Q0(), Q1(), Q2(), Q3(), QEnd()])</pre>
+
+    <p>
+        Les fichiers dont le nom est en paramètre de
+        <tt>LOAD_QUESTION</tt>
+        <tt>LOAD_DEFAULT</tt>
+        <tt>LOAD_ANSWER</tt>
+        <tt>LOAD_GRADING</tt>
+        sont enregistrés comme des media.
+        Ils peuvent être édités interactivement dans C5
+        via l'onglet «Media» de la page de configuration de la session.
+    </p>
 
     <h3>Définir une session à partir d'un squelette</h3>
     <p>
@@ -1611,14 +1622,25 @@ System calls allowable for g++/gcc:
         Lancez ces commandes (Ubuntu) :
     </p>
     <pre>sudo apt update
-sudo apt install astyle curl npm racket zip # nginx certbot
 git clone https://github.com/texcoffier/C5.git
 cd C5
+./c5.py os       # Install all necessary system packets
+./c5.py launcher # Create SUID root launcher (manage one UID per session)
+./c5.py SSL-SS   # Create self signed certificate for HTTPS
+                 # You need to <a href="#configure_browser">indicate security exceptions in the browser</a> for the websocket.
 make</pre>
     <p>
         Si tout s'est bien passé, une page web s'ouvre sur l'interface d'administration.
         Vous pouvez alors cliquer sur «Session» pour choisir une session.
     </p>
+    <p>
+        Mais attention, car à ce niveau :
+    </p>
+    <ul>
+        <li> Pas d'authentification : un nouvel utilisateur par session</li>
+        <li> Il n'existe aucun login étudiant</li>
+        <li> Tous les logins anonymes sont 'root'.</li>
+    </ul>
     <h3>Configuration et gestion C5.</h3>
     <p>
         La configuration de C5 est un script exécutable, vous pouvez en créer
@@ -1668,6 +1690,36 @@ make</pre>
              et ajoutez par exemple :<br>
             <tt>0,5,10,15,20,25,30,35,40,45,50,55 * * * * GET http://127.0.0.1:4201/ &gt;/dev/null || (cd C5 ; ./xxx-start-c5) &gt;&gt;xxx-C5.cron 2&gt;&amp;1</tt>
         </li>
+    </ul>
+
+    <h3><a name="configure_browser">Configuration navigateur web.</a></h3>
+    <p>
+        <b>C'est seulement nécessaire sur la machine développeur
+        s'il utilise des certificats auto signés</b>.
+        Il faut lancer C5 avant de faire la manipulation.
+    </p>
+    <ul>
+        <li> Firefox :
+            <ul>
+                <li> Menu ≡ : «Settings»</li>
+                <li> Chercher «certificat»</li>
+                <li> Cliquer sur «View certificates»</li>
+                <li> Onglet «Servers»</li>
+                <li> Bouton «Add exception» </li>
+                <li> Enter «https://YOURURL:YOURWEBSOCKETPORT» the default port is 4200 for websocket</li>
+                <li> Bouton : «Get certificate» (en lisant bien le message qui s'affiche)</li>
+                <li> Bouton : «Confirm security exception»</li>
+            </ul>
+        </li>
+        <li><p> Chrome : il veut des fichiers certificat.
+            J'ai pu récupérer avec cette commande :
+    </p>
+    <pre>curl -k -w %{certs}  https://YOURURL:YOURWEBSOCKETPORT |
+    awk '/^-----BEGIN/ { P=1 } P==1 { print($0) }' &gt;cert.pem</pre>
+    <p>
+        Mais une fois importé dans Chrome cela ne fonctionne pas.
+        Si quelqu'un a une idée...
+    </p>
     </ul>
 
     <h3>Configuration NGINX.</h3>

@@ -380,8 +380,7 @@ async def simulate_active_student() -> None:
 
 async def startup(app:web.Application) -> None:
     """For student names and computer names"""
-    if utilities.C5_VALIDATE:
-        app['load_student_infos'] = asyncio.create_task(load_student_infos())
+    app['load_student_infos'] = asyncio.create_task(load_student_infos())
     # app['simulate_active_student'] = asyncio.create_task(simulate_active_student())
     log("DATE HOUR STATUS TIME METHOD(POST/GET) TICKET/URL")
     def close_all(*_args, **_kargs):
