@@ -183,6 +183,9 @@ def init_minimal_worker(notation_a, notation_b, hook):
             worker.notation_a
             worker.notation_b
     """
+    if COURSE[0] == '^':
+        hook()
+        return
     def init_worker(worker, version):
         worker.postMessage(['reset'])
         worker.postMessage(['config',
@@ -208,7 +211,7 @@ def init_minimal_worker(notation_a, notation_b, hook):
                 }
                 hook()
     def onerror(event):
-        print(event)
+        print("Can't load questions description", event)
     worker_url = BASE + '/' + COURSE + "?ticket=" + TICKET
     worker_url += '&login=' + LOGIN
     worker = eval('new Worker(worker_url)') # pylint: disable=eval-used
