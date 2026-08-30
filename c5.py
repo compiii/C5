@@ -30,13 +30,13 @@ def local_ip() -> str:
 
 # To please pylint:
 C5_HOST = C5_IP = C5_LOGIN = C5_HTTP = C5_SOCK = C5_MAIL = C5_CERT = None
-C5_LOCAL = C5_URL = C5_DIR = C5_WEBSOCKET = C5_REDIRECT = C5_VALIDATE = C5_LDAP = None
-C5_LDAP_LOGIN = C5_LDAP_PASSWORD = C5_LDAP_BASE = C5_LDAP_ENCODING = C5_CUSTOMIZE = None
+C5_LOCAL = C5_URL = C5_DIR = C5_WEBSOCKET = C5_REDIRECT = C5_VALIDATE = None
+C5_CUSTOMIZE = None
 C5_ROOT = ''
 
 CONFIGURATIONS = (
-    ('C5_HOST'         ,'Production host (for SSH)'            , socket.getfqdn(local_ip())),
-    ('C5_IP'           ,'For Socket IP binding'                , local_ip()),
+    ('C5_HOST'         ,'Production host (for SSH)'            , 'localhost'),
+    ('C5_IP'           ,'For Socket IP binding'                , '127.0.0.1'),
     ('C5_ROOT'         ,'login allowed to sudo'                , 'root'),
     ('C5_LOGIN'        ,'user C5 login'                        , getpass.getuser()),
     ('C5_HTTP'         ,'Port number for HTTP'                 , 8000),
@@ -49,12 +49,10 @@ CONFIGURATIONS = (
     ('C5_WEBSOCKET'    ,'Browser visible address for WebSocket', lambda: f'{C5_HOST}:{C5_SOCK}'),
     ('C5_REDIRECT'     ,'CAS redirection'                      , ''), # https://cas.univ-lyon1.fr/login?service=
     ('C5_VALIDATE'     ,'CAS get login'                        , ''), # https://cas.univ-lyon1.fr/cas/validate?service=%s&ticket=%s
-    ('C5_LDAP'         ,'LDAP URL'                             , ''),
-    ('C5_LDAP_LOGIN'   ,'LDAP reader login'                    , ''),
-    ('C5_LDAP_PASSWORD','LDAP reader password'                 , ''),
-    ('C5_LDAP_BASE'    ,'LDAP user search base'                , ''),
-    ('C5_LDAP_ENCODING','LDAP character encoding'              , 'utf-8'),
-    ('C5_COMPILE_UID'  ,'Starts of UID for compiling'          , 3000),
+    ('C5_USERS_URL'    ,'Internal users profile API'           , ''),
+    ('C5_USERS_TOKEN_FILE', 'Private users API token file'     , ''),
+    ('C5_EXECUTION_ENABLED', 'Execution enabled by deployment profile', 0),
+    ('C5_COMPILE_UID'  ,'Starts of UID for compiling'          , 50000),
     ('C5_CUSTOMIZE'    ,'File with «common.py» overloading'    , 'local_my.py'),
 )
 
@@ -132,7 +130,7 @@ ACTIONS = {
         sudo sh -c '
             set -e
             apt update
-            apt -y install astyle nginx certbot python3-venv python3-wheel python3-dev libldap-dev libsasl2-dev python3-psutil python3-certbot-nginx npm racket zip curl rsync coq swi-prolog cargo rustfmt
+            apt -y install astyle nginx certbot python3-venv python3-wheel python3-dev python3-psutil python3-certbot-nginx npm racket zip curl rsync coq swi-prolog cargo rustfmt
             apt -y upgrade
             # set-timezone Europe/Paris
             '
@@ -152,7 +150,7 @@ ACTIONS = {
                 exit 1
             fi
         . PIPENV/bin/activate
-        pip install aiohttp websockets python-ldap
+        pip install aiohttp websockets
     """,
     'c5': f"""#C5_LOGIN
         set -e

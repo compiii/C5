@@ -9,6 +9,7 @@ import shutil
 import pathlib
 from compilers import Compiler
 import runner
+from safe_files import write_inputs
 
 ALWAYS_ALLOWED = {"fstat", "newfstatat", "write", "read",
                   "lseek", "futex", "exit_group", "exit",
@@ -60,7 +61,7 @@ class GCC(Compiler):
             session.allowed_str = ':'.join(list(ALWAYS_ALLOWED) + session.allowed)
             process = await asyncio.create_subprocess_exec(
                 session.compiler, *session.compile_options,
-                '-I', '/tmp',
+                '-I', '/opt/c5/lib',
                 self.source_file, *session.ld_options, '-o', 'HOME/a.out',
                 stderr=asyncio.subprocess.PIPE,
                 preexec_fn=set_compiler_limits,
@@ -94,10 +95,7 @@ class GCC(Compiler):
         session.log(f'./launcher {session.allowed_str} {session.uid} {session.home} '
                     f'{session.max_time} a.out')
         pathlib.Path(session.home).mkdir(exist_ok=True)
-        for filename, content in session.filetree_in:
-            filename = pathlib.Path(f"{session.home}/{filename}")
-            filename.parent.mkdir(parents=True, exist_ok=True)
-            filename.write_text(content, encoding='utf8')
+        write_inputs(session.home, session.filetree_in)
         last_allowed = session.allowed_str.rsplit(':')[-1]
         process = await asyncio.create_subprocess_exec(
             "./launcher",

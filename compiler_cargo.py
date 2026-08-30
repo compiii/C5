@@ -121,10 +121,8 @@ class Cargo(Compiler):
             f'{session.home} {session.max_time} target/debug/home'
         )
         pathlib.Path(session.home).mkdir(exist_ok=True)
-        for filename, content in session.filetree_in:
-            filename = pathlib.Path(f"{session.home}/{filename}")
-            filename.parent.mkdir(parents=True, exist_ok=True)
-            filename.write_text(content, encoding='utf8')
+        from safe_files import write_inputs
+        write_inputs(session.home, session.filetree_in)
         last_allowed = session.allowed_str.rsplit(':')[-1]
 
         process = await asyncio.create_subprocess_exec(

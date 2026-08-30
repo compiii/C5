@@ -174,7 +174,7 @@ async def editor(session:Session, is_admin:bool, course:CourseConfig, # pylint: 
         login = session.login
     else:
         stop = course.stop_timestamp
-    infos = await utilities.LDAP.infos(login)
+    infos = await utilities.USERS.infos(login)
     if grading or feedback >= 5:
         notation = f"NOTATION = {json.dumps(course.get_notation(login))};"
         title = infos['sn'].upper() + ' ' + infos['fn'].title()
@@ -354,7 +354,7 @@ async def load_student_infos() -> None:
             # No need to update login information
             # for old sessions.
             # for login in config.active_teacher_room:
-            #     await utilities.LDAP.infos(login)
+            #     await utilities.USERS.infos(login)
     except: # pylint: disable=bare-except
         log(traceback.format_exc())
     log(f'Load all sessions time: {time.time() - start}')
@@ -1084,7 +1084,7 @@ async def my_git(request:Request) -> StreamResponse: # pylint: disable=too-many-
         await process.wait()
 
     git_dir = ''
-    infos = await utilities.LDAP.infos(session.login)
+    infos = await utilities.USERS.infos(session.login)
     author_name = f"{infos['fn'].title()} {infos['sn'].upper()}"
     author_email = infos.get('mail', 'x@y.z')
     question = None
@@ -1828,9 +1828,10 @@ async def home(request:Request) -> Response:
         data.append((course.course, course.highlight, expected, feedback,
                      course.title, course.start_timestamp, course.stop_timestamp,
                      login in course.tt_list))
+    infos_json = json.dumps(await utilities.USERS.infos(login)).replace('<', '\\u003c')
     return answer(f'''{session.header(login=login)}
 <script src="JS/home.js?ticket={session.ticket}"></script>
-<script>home({json.dumps(data)}, {await utilities.LDAP.infos(login)})</script>
+<script>home({json.dumps(data)}, {infos_json})</script>
 ''')
 
 async def checkpoint_buildings(request:Request) -> Response:
@@ -1981,7 +1982,7 @@ async def adm_stats(request:Request) -> Response:
 async def adm_session(request:Request) -> Response:
     """Session configuration for administrators"""
     session, config = await get_course_config(request)
-    students = {login: await utilities.LDAP.infos(login)
+    students = {login: await utilities.USERS.infos(login)
                 for login in config.active_teacher_room
                }
     return answer(
@@ -2761,16 +2762,8 @@ def main():
         """Logger for aiohttp"""
         def log(self, request, response, rtime): # pylint: disable=redefined-outer-name
             path = request.path.replace('\n', '\\n')
-            session = Session.session_cache.get(
-                request.query_string.replace('ticket=', ''), None)
-            if session:
-                login = session.login
-            else:
-                login = ''
             print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {response.status} "
                 f"{rtime:5.3f} {request.method[0]} "
-                f"{request.query_string.replace('ticket=ST-', '').split('-')[0]} "
-                f"{login} "
                 f"{path}",
                 flush=True)
 

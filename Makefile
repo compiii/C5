@@ -2,12 +2,11 @@
 COMPILERS = $(shell ls compile_*.py | grep -v compile_server.py)
 
 JS/%.js: JS %.py compatibility.py options.py compile.py question.py xxx_local.py
-	@./py2js $* || true
+	@./py2js $*
 %.js: %.py
-	@./py2js $* || true
+	@./py2js $*
 
 default:all
-	@./c5.py open # Open page on browser
 
 xxx_local.py:common.py coach.py $(C5_CUSTOMIZE)
 	cat common.py coach.py $(C5_CUSTOMIZE) >$@
@@ -27,34 +26,29 @@ sandbox/libsandbox.so:
 	make libsandbox.so)
 
 launcher:launcher.c
-	$(CC) -Wall $@.c -o $@
-	chown root $@
-	chmod u+s $@
+	$(CC) -Wall -Wextra -Werror $(CPPFLAGS) $@.c -o $@
 
 killer:killer.c
 
 favicon.ico:c5.svg
 	inkscape --export-area-drawing --export-png=$@ $?
 
-prepare:RapydScript node_modules/brython HIGHLIGHT xxx-JSCPP.js \
-        node_modules/alasql sandbox/libsandbox.so killer \
-		favicon.ico node_modules/@jcubic/lips node_modules/marked
+.PHONY: check-dependencies prepare
+check-dependencies:
+	@test -d RapydScript && test -d node_modules/brython && test -d HIGHLIGHT
+	@test -f xxx-JSCPP.js && test -f sandbox/libsandbox.so && test -f favicon.ico
+	@test -d node_modules/alasql && test -d node_modules/@jcubic/lips && test -d node_modules/marked
+
+# Offline construction only. Dependencies must come from a reviewed frozen bundle.
+prepare:check-dependencies killer
 	@$(MAKE) -j $$(nproc) \
 		$$(echo COMPILE_*/*/*.py | sed 's/\.py/.js/g') \
 		$$(echo $(COMPILERS) | sed -e 's,^,JS/,' -e 's, , JS/,g' -e 's/\.py/\.js/g') \
 		JS/ccccc.js JS/live_link.js JS/adm_root.js JS/adm_course.js JS/adm_session.js \
 		JS/checkpoint.js JS/checkpoint_list.js JS/home.js JS/stats.js JS/bare_particles.js
-	@if [ ! -d SSL ] ; then ./c5.py SSL-SS ; fi
-	@for ORIG in sandbox/libsandbox.so Grapic.h ; \
-	do \
-		DEST=/tmp/$$(basename $$ORIG) ; \
-		if [ ! -e $$DEST ] ; then cp $$ORIG $$DEST ; fi ; \
-		if ! diff $$ORIG $$DEST ; then exit 1 ; fi ; \
-	done
 
 all:prepare
-	@echo
-	@./c5.py start
+	@echo 'Build complete. Install and start with the deployment scripts/systemd.'
 
 ############# Utilities ############
 RapydScript:

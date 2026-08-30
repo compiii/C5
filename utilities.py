@@ -21,12 +21,14 @@ import urllib.request
 import urllib.parse
 import asyncio
 import inspect
+import ast
 import aiohttp
 from aiohttp import web
 import options
 import common
 from c5 import init_globals
 import xxx_local
+import users_client
 
 C5_IP = C5_SOCK = C5_COMPILE_UID = None
 
@@ -46,9 +48,7 @@ def set_of_logins(txt):
                for login in re.split('[ \n\r\t]+', txt))
 
 class Process: # pylint: disable=invalid-name
-    """Create a LDAP or DNS process and get information from it.
-    It is more simple than using an asyncio LDAP library.
-    """
+    """Run the DNS lookup helper using the same Python interpreter."""
     cache:Dict[Any,Any] = {}
     started:Optional[bool] = None
 
@@ -71,8 +71,8 @@ class Process: # pylint: disable=invalid-name
         """
         Start a process reading login on stdin and write information on stdout
         """
-        self.process = await asyncio.create_subprocess_shell( # pylint: disable=attribute-defined-outside-init
-            "exec python3 " + self.command,
+        self.process = await asyncio.create_subprocess_exec( # pylint: disable=attribute-defined-outside-init
+            sys.executable, self.command,
             stdout=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.PIPE,
             )
@@ -134,7 +134,12 @@ class Process: # pylint: disable=invalid-name
         self.log(f'Answer about «{key}»: {self.cache[key]}')
         return self.cache[key]
 
-LDAP = Process('infos_server.py', 'LDAP')
+class UsersProfiles:
+    """Async bounded network lookup; no persistent or stale profile cache."""
+    async def infos(self, uid):
+        return await asyncio.to_thread(users_client.profile, uid)
+
+USERS = UsersProfiles()
 DNS = Process('dns_server.py', 'DNS')
 
 def get_buildings() -> Dict[str,str]:
@@ -316,7 +321,7 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
                     self.parse_position += line_len # file.tell() forbiden here
                     if line_len <= 1:
                         continue
-                    data = eval(line) # pylint: disable=eval-used
+                    data = ast.literal_eval(line)
                     if len(data) == 2:
                         if data[1] in ('0', '1', True, False):
                             config[data[0]]  = int(data[1]) # XXX To read old files (to remove)
@@ -502,7 +507,7 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         while self.to_send:
             data = self.to_send.pop(0)
             if data[0] == 'active_teacher_room' and data[3] is None: # New student
-                self.to_send.append(('infos', data[2], await LDAP.infos(data[2])))
+                self.to_send.append(('infos', data[2], await USERS.infos(data[2])))
             data = (json.dumps(data) + '\n').encode('utf-8')
             for stream in tuple(self.streams):
                 try:
@@ -683,7 +688,7 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         # Clearly not efficient
         students = []
         for student, active_teacher_room in self.active_teacher_room.items():
-            infos = await LDAP.infos(student)
+            infos = await USERS.infos(student)
             students.append([student, active_teacher_room, infos])
         return students
 
@@ -1120,7 +1125,7 @@ class Config: # pylint: disable=too-many-instance-attributes
                 config = self.config
                 try:
                     for line in file:
-                        data = eval(line) # pylint: disable=eval-used
+                        data = ast.literal_eval(line)
                         if len(data) == 2:
                             config[data[0]] = data[1]
                         elif len(data) == 3:
@@ -1200,7 +1205,7 @@ class Config: # pylint: disable=too-many-instance-attributes
             return True
         if self.roots:
             return False
-        return not self.is_student(login)
+        return False  # No implicit administrator when roots has not been configured.
     def is_admin(self, login:str) -> bool:
         """Returns True if it is an admin login"""
         return login in self.masters or self.is_root(login)
@@ -1230,6 +1235,23 @@ class Session:
         if creation_time is None:
             creation_time = time.time()
         self.creation_time = creation_time
+        self.access_checked = 0
+    async def check_access(self):
+        """Recheck users within 30 seconds; outages deny access, never extend cache."""
+        if self.access_checked and time.monotonic() - self.access_checked < 30:
+            return True
+        try:
+            current = await USERS.infos(self.login)
+        except Exception:
+            raise web.HTTPServiceUnavailable(text="Service users indisponible") from None
+        if (not current['c5_access'] or
+                current['auth_version'] != (self.infos or {}).get('auth_version')):
+            self.session_cache.pop(self.ticket, None)
+            pathlib.Path('TICKETS', self.ticket).unlink(missing_ok=True)
+            return False
+        self.infos = current
+        self.access_checked = time.monotonic()
+        return True
     async def get_login(self, service:str) -> str:
         """Return a validated login"""
         if self.login:
@@ -1237,33 +1259,30 @@ class Session:
         service = f'https://{C5_URL}{service}'
         if C5_VALIDATE:
             if self.ticket:
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                     url = C5_VALIDATE % (urllib.parse.quote(service),
                                         urllib.parse.quote(self.ticket))
-                    async with session.get(url) as data:
+                    async with session.get(url, allow_redirects=False) as data:
                         content = await data.text()
                         lines = content.split('\n')
-                        if lines[0] == 'yes':
-                            self.login = xxx_local.normalize_login(lines[1])
-                            self.infos = await LDAP.infos(self.login)
+                        if data.status == 200 and len(lines) >= 2 and lines[0] == 'yes':
+                            self.login = lines[1]
+                            self.infos = await USERS.infos(self.login)
+                            if not self.infos['c5_access']:
+                                self.login = None
+                                raise web.HTTPForbidden(text="Accès C5 refusé")
                             self.record()
             if not self.login:
                 raise web.HTTPFound(C5_REDIRECT + urllib.parse.quote(service))
         else:
-            if self.ticket and self.ticket.isdigit():
-                self.login = f'anonyme_{self.ticket}'
-                self.infos = {'fn': 'fn' + self.ticket, 'sn': 'sn' + self.ticket}
-                LDAP.cache[self.login] = self.infos
-                self.record()
-            else:
-                raise web.HTTPFound(
-                    service + f'?ticket={int(time.time())}{len(self.session_cache)}')
+            raise web.HTTPServiceUnavailable(text="CAS non configuré")
         self.hostname = (await DNS.infos(self.client_ip))['name']
         return self.login
     def record(self) -> None:
         """Record the ticket for the compile server"""
         with open(f'TICKETS/{self.ticket}', 'w', encoding='utf-8') as file:
-            file.write(str(self))
+            json.dump({'schema': 1, 'session': [self.client_ip, self.browser, self.login,
+                       self.creation_time, self.infos, self.hostname]}, file)
     def __str__(self):
         return repr((self.client_ip, self.browser, self.login, self.creation_time,
                      self.infos, self.hostname))
@@ -1295,8 +1314,13 @@ class Session:
     @classmethod
     def load_ticket_file(cls, ticket:str) -> "Session":
         """Load the ticket from file"""
+        if not users_client.valid_ticket(ticket):
+            raise ValueError('Invalid ticket')
         with open(f'TICKETS/{ticket}', 'r', encoding='utf-8') as file:
-            session = Session(ticket, *eval(file.read())) # pylint: disable=eval-used
+            data = json.load(file)
+            if data.get('schema') != 1 or not isinstance(data.get('session'), list) or len(data['session']) != 6:
+                raise ValueError('Invalid session format')
+            session = Session(ticket, *data['session'])
         cls.session_cache[ticket] = session
         return session
 
@@ -1309,6 +1333,8 @@ class Session:
         assert request.transport
         if not ticket:
             ticket = request.query.get('ticket', '')
+        if ticket and not users_client.valid_ticket(ticket):
+            return None
         try:
             # aiohttp
             headers = request.headers
@@ -1323,16 +1349,20 @@ class Session:
                 client_ip, _port = request.remote_address
             else:
                 client_ip = '0.0.0.0'
-        forward = headers.get('x-forwarded-for', '')
-        if forward:
-            client_ip = forward.split(",")[0]
+        try:
+            client_ip = users_client.client_address(client_ip, headers)
+        except ValueError:
+            return None
         browser = headers.get('user-agent', '')
         if ticket in cls.session_cache:
             session = cls.session_cache[ticket]
             if not session.check(request, client_ip, browser, allow_ip_change=allow_ip_change):
                 return None
         elif ticket and os.path.exists(f'TICKETS/{ticket}'):
-            session = cls.load_ticket_file(ticket)
+            try:
+                session = cls.load_ticket_file(ticket)
+            except (ValueError, TypeError, KeyError):
+                return None  # Legacy repr sessions are intentionally invalidated.
             if not session.check(request, client_ip, browser, allow_ip_change=allow_ip_change):
                 return None
             if not session.hostname:
@@ -1343,6 +1373,8 @@ class Session:
                 cls.session_cache[ticket] = session
         if not session.login:
             await session.get_login(request.path)
+        if not await session.check_access():
+            return None
         return session
 
     @classmethod

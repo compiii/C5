@@ -73,6 +73,9 @@ class Process: # pylint: disable=too-many-instance-attributes
         """Compile"""
         (_course, _question, self.compiler, self.compile_options,
          self.ld_options, self.allowed, source) = data
+        approved = os.environ.get('C5_ENABLED_COMPILERS', '').split(',')
+        if self.compiler not in approved:
+            raise ValueError('Compiler not approved for this deployment')
         if not self.cmp:
             self.cmp = COMPILERS[self.compiler]
         self.log(("COMPILE", data[:6]))
@@ -158,7 +161,7 @@ async def echo(websocket) -> None: # pylint: disable=too-many-branches,too-many-
         path = websocket.request.path
     except AttributeError:
         path = websocket.path
-    print(time.strftime('%Y%m%d%H%M%S'), path, flush=True)
+    print(time.strftime('%Y%m%d%H%M%S'), 'WebSocket connection', flush=True)
 
     if time.time() < echo.next_allowed_start_time:
         wait = echo.next_allowed_start_time - time.time()
@@ -172,7 +175,14 @@ N'actualisez PAS la page."""]))
     else:
         echo.next_allowed_start_time = time.time() + MIN_TIME_BETWEEN_CONNECT
 
-    _, ticket, course = path.split('/')
+    if os.environ.get('C5_EXECUTION_ENABLED') != '1':
+        await websocket.close(code=1013, reason='Moteur désactivé : recette Linux requise')
+        return
+    parts = path.split('/')
+    if len(parts) != 3 or not utilities.users_client.valid_ticket(parts[1]):
+        await websocket.close(code=1008, reason='Session invalide')
+        return
+    _, ticket, course = parts
     if not os.path.exists('TICKETS/' + ticket):
         await bad_session(websocket)
         return
@@ -187,11 +197,28 @@ N'actualisez PAS la page."""]))
     course = urllib.parse.unquote(course)
     course_config = utilities.CourseConfig.get(utilities.get_course(course))
 
+    if not FREE_USERS:
+        await websocket.close(code=1013, reason='Capacité atteinte')
+        return
+    async def watch_access():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                valid = not session.too_old() and await session.check_access()
+            except Exception:
+                valid = False
+            if not valid:
+                await websocket.close(code=1008, reason='Accès expiré ou révoqué')
+                return
+    watcher = asyncio.create_task(watch_access())
     process = Process(websocket, FREE_USERS.pop())
     PROCESSES.append(process)
     try:
-        process.log(("START", ticket, login, course, process.uid))
+        process.log(("START", login, course, process.uid))
         async for message in websocket:
+            if session.too_old() or not await session.check_access():
+                await websocket.close(code=1008, reason='Accès révoqué')
+                break
             action, data = json.loads(message)
             if action != 'input': # To many logs (Grapic)
                 process.log(('ACTION', action))
@@ -230,6 +257,7 @@ N'actualisez PAS la page."""]))
     except: # pylint: disable=bare-except
         process.log(("EXCEPTION", traceback.format_exc()))
     finally:
+        watcher.cancel()
         process.log(("STOP", len(PROCESSES), len(FREE_USERS)))
         if process.cmp:
             await process.cancel_tasks()
@@ -241,7 +269,8 @@ echo.next_allowed_start_time = 0
 
 async def main() -> None:
     """Answer compilation requests"""
-    async with websockets.serve(echo, utilities.C5_IP, utilities.C5_SOCK, ssl=CERT): # pylint: disable=no-member
+    async with websockets.serve(echo, utilities.C5_IP, utilities.C5_SOCK, ssl=CERT,
+                               origins=['https://' + utilities.C5_URL], max_size=1048576):
         print(f'Start using UID from {UID_MIN}')
         print(f"compile_server running {utilities.C5_IP}:{utilities.C5_SOCK}", flush=True)
         await asyncio.Future()  # run forever
