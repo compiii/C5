@@ -1261,7 +1261,7 @@ int main()
             self.goto('checkpoint/REMOTE=test')
             self.check(f'DIV[login=anonyme_{student}]', {'innerHTML': Contains(student)})
             self.driver.execute_script(
-                f"record('checkpoint/REMOTE=test/anonyme_{student}/Nautibus,42,42,a')")
+                f"record('checkpoint/REMOTE=test/anonyme_{student}/BAT_INFO_PREMIER_ETAGE,3,8,b')")
             admin = self.ticket
             time.sleep(0.1)
 

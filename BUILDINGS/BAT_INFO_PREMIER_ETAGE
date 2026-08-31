@@ -1,0 +1,86 @@
+BATIMENT DEPARTEMENT INFORMATIQUE
+
+PREMIER ETAGE
+
+[TP1] [TP2]
+
++---------------------------------------------------------+
+|                                                         |
+|  bs    as    bs    as    bs      as    bs    as    bs   |
+|  as    bs    as    bs    as      bs    as    bs    as   |
+|  bs    as    bs    as    bs      as    bs    as    bs   |
+|  as    bs    as    bs    as      bs    as    bs    as   |
+d                                                         |
+d              SALLE TP2                                  |
++---------------------------------------------------------+
+d                                                         |
+d                                                         |
+|  as    bs      as    bs                                 |
+|  bs    as      bs    as                                 |
+|  as    bs      as    bs                                 |
+|  bs    as      bs    as                                 |
+|  as    bs      as    bs                                 |
+|  bs    as      bs    as                                 |
+|  as    bs      as    bs                                 |
+|  bs    as      bs    as                                 |
+|                                                         |
+|              SALLE TP1                                  |
++---------------------------------------------------------+
+
+[TP3] [TP4] [TP5] [TP6]
+
++------------------+------+---------------------+---------------------+---------------------+
+| as    bs    as   |      |                     |                     |                     |
+| bs    as    bs   |      |    as    bs    as   |    as    bs    as   |    as    bs    as   |
+| as    bs    as   |      |    bs    as    bs   |    bs    as    bs   |    bs    as    bs   |
+| bs    as    bs   |      |    as    bs    as   |    as    bs    as   |    as    bs    as   |
+| as    bs    as   |      |    bs    as    bs   |    bs    as    bs   |    bs    as    bs   |
+|                  |      |                     |    as    bs    as   |    as    bs    as   |
+| bs    as    bs   |      |    as    bs    as   |    bs    as    bs   |                     |
+| as    bs    as   |      |    bs    as    bs   |    as    bs    as   |    bs    as    bs   |
+| bs    as    bs   |      |    as    bs    as   |    bs    as    bs   |    as    bs    as   |
+| as    bs    as   |      |    bs    as    bs   |    as    bs    as   |    bs    as    bs   |
+| bs    as    bs   +------+    as    bs    as   |    bs    as    bs   |    as    bs    as   |
+|                  d      |                     |                     |                     |
+| SALLE TP6        d      |    SALLE TP5        |    SALLE TP4        |    SALLE TP3        |
++------------------+      +-dd------------------+------dd--dd---------+-dd------------------+
+
+[TP7] [TP8]
+
++-dd---------------dd-+---------------dd-+
+|                     |                  |
+|    as    bs    as   |                  |
+|    bs    as    bs   |                  |
+|    as    bs    as   |                  |
+|    bs    as    bs   |                  |
+|                     |                  |
+|    as    bs    as   |                  |
+|    bs    as    bs   |                  |
+|    as    bs    as   |                  |
+|    bs    as    bs   |                  |
+|    as    bs    as   |                  |
+|                     |                  |
+|    SALLE TP7        |    SALLE TP8     |
++---------------------+------------------+
+
+[TP9]
+
++-dd-------------+
+|                |
+|    as    bs    |
+|    bs    as    |
+|    as    bs    d
+|    bs    as    d
+|    as    bs    |
+|    bs    as    d
+|    as    bs    d
+|    bs    as    |
+|    as    bs    |
+|    bs    as    |
+|    as    bs    |
+|    bs    as    |
+|    as    bs    |
+|    bs    as    d
+|                d
+|    SALLE TP9   |
++----------------+

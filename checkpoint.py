@@ -2915,7 +2915,8 @@ try:
 except SyntaxError:
     INFO = {}
 if 'building' not in INFO:
-    INFO['building'] = OPTIONS.default_building or "Nautibus"
+    INFO['building'] = (OPTIONS.default_building if OPTIONS.default_building in BUILDINGS
+                        else BUILDINGS_SORTED[0])
 if 'start' not in OPTIONS:
     OPTIONS['start'] = OPTIONS['stop'] = nice_date(0)
 
@@ -2969,4 +2970,3 @@ else:
         XHR.send()
 
     WORKER = init_minimal_worker(OPTIONS.notation, OPTIONS.notationB, init)
-
