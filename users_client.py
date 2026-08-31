@@ -11,7 +11,7 @@ import urllib.request
 
 
 def profile(uid):
-    if not re.fullmatch(r"[a-z][a-z0-9._-]{2,63}", uid):
+    if not re.fullmatch(r"(?:[a-z][a-z0-9._-]{2,63}|[0-9]{1,64})", uid):
         raise ValueError("Invalid uid")
     base = os.environ.get("C5_USERS_URL", "")
     url = urllib.parse.urlsplit(base)
