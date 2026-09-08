@@ -17,7 +17,7 @@ def profile(uid):
     url = urllib.parse.urlsplit(base)
     if (url.scheme != "http" or url.hostname != "127.0.0.1" or not url.port or
             url.username or url.password or url.query or url.fragment or
-            url.path != "/users/internal/c5/profiles"):
+            url.path != "/internal/c5/profiles"):
         raise ValueError("C5_USERS_URL must be the loopback users API")
     path = Path(os.environ["C5_USERS_TOKEN_FILE"])
     if not path.is_absolute():
