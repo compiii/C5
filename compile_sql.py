@@ -16,8 +16,21 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
     def run_compiler(self, source):
         """Compile, display errors and return the executable"""
         try:
+            database = self.quest.sql_database()
+            if database:
+                eval('alasql(' + JSON.stringify(database) + ')')
+            source = self.quest.normalize_sql(source)
             # pylint: disable=eval-used
             executable = eval('alasql(' + JSON.stringify(source) + ')')
+            # AlaSQL returns rows directly for one SELECT, but one item per
+            # statement when the source contains several statements. Keep the
+            # executor contract stable by always exposing a list of results.
+            if not Array.isArray(executable):
+                executable = [executable]
+            elif (len(executable) == 0
+                  or (typeof(executable[0]) == 'object'
+                      and not Array.isArray(executable[0]))):
+                executable = [executable]
             self.post('compiler', 'Compilation sans erreur')
             return executable
         except Error as err: # pylint: disable=undefined-variable

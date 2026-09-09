@@ -179,6 +179,12 @@ class Question:
     def append_to_source_code(self): # pylint: disable=no-self-use
         """Add this to the user source code"""
         return ""
+    def sql_database(self): # pylint: disable=no-self-use
+        """SQL statements run before the student's query (SQL sessions only)."""
+        return ""
+    def normalize_sql(self, source): # pylint: disable=no-self-use
+        """Return the SQL sent to the interpreter without changing saved source."""
+        return source
     def placement(self):
         """Return [Building, coord_x, coord_y]"""
         building, coord_x, coord_y = self.worker.options.WHERE[2].split(',')[:3]
