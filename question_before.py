@@ -29,7 +29,8 @@ class Question: # pylint: disable=too-few-public-methods
     """Create the list of created question."""
     def __init_subclass__(cls, /, **kwargs):
         super().__init_subclass__(**kwargs)
-        question_classes.append(cls)
+        if cls.__name__.startswith('Q'):
+            question_classes.append(cls)
     def grading_ladder(self):
         return ''
     def version(self):

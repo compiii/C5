@@ -80,65 +80,60 @@ au moteur SQL embarque.</p></details>
 """
 
 
-Question.expected = []
-Question.ordered = False
-Question.required = []
+class TD2Question(Question):
+    """Shared behaviour; its name keeps it out of the question list."""
 
-def td2_sql_database(self):
-    return DATABASE
+    expected = []
+    ordered = False
+    required = []
 
-def td2_normalize_sql(self, source):
-    pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
-    return source.replace(pattern, '$1(DATE($2))')
+    def sql_database(self):
+        return DATABASE
 
-def td2_default_answer(self):
-    return "-- Ecrivez une seule requete SELECT.\nSELECT "
+    def normalize_sql(self, source):
+        pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
+        return source.replace(pattern, '$1(DATE($2))')
 
-def td2_expected_answer(self):
-    return self.solution
+    def default_answer(self):
+        return "-- Ecrivez une seule requete SELECT.\nSELECT "
 
-def td2_question(self):
-    return self.statement + SCHEMA
+    def expected_answer(self):
+        return self.solution
 
-def td2_canonical(self, rows, keep_order=False):
-    canonical_rows = []
-    for row in rows:
-        keys = Object.keys(row)
-        keys.sort()
-        values = []
-        for key in keys:
-            value = JSON.stringify(row[key]) or 'null'
-            values.append(key + '=' + value)
-        canonical_rows.append(values.join('|'))
-    if not keep_order:
-        canonical_rows.sort()
-    return JSON.stringify(canonical_rows)
+    def question(self):
+        return self.statement + SCHEMA
 
-def td2_tester(self):
-    results = self.worker.executable
-    one_query = results and len(results) == 1 and Array.isArray(results[0])
-    self.message(one_query, 'Une seule requete SELECT est executee')
-    if not one_query:
-        return
-    correct = (self.canonical(results[0], self.ordered)
-               == self.canonical(self.expected, self.ordered))
-    self.message(correct, 'Le tableau obtenu est exactement celui attendu')
-    source = self.worker.source
-    for pattern, label in self.required:
-        self.message(source.match(RegExp(pattern, 'i')), label)
-    if self.all_tests_are_fine:
-        self.next_question()
+    def canonical(self, rows, keep_order=False):
+        canonical_rows = []
+        for row in rows:
+            keys = Object.keys(row)
+            keys.sort()
+            values = []
+            for key in keys:
+                value = JSON.stringify(row[key]) or 'null'
+                values.append(key + '=' + value)
+            canonical_rows.append(values.join('|'))
+        if not keep_order:
+            canonical_rows.sort()
+        return JSON.stringify(canonical_rows)
 
-Question.sql_database = td2_sql_database
-Question.normalize_sql = td2_normalize_sql
-Question.default_answer = td2_default_answer
-Question.expected_answer = td2_expected_answer
-Question.question = td2_question
-Question.canonical = td2_canonical
-Question.tester = td2_tester
+    def tester(self):
+        results = self.worker.executable
+        one_query = results and len(results) == 1 and Array.isArray(results[0])
+        self.message(one_query, 'Une seule requete SELECT est executee')
+        if not one_query:
+            return
+        correct = (self.canonical(results[0], self.ordered)
+                   == self.canonical(self.expected, self.ordered))
+        self.message(correct, 'Le tableau obtenu est exactement celui attendu')
+        source = self.worker.source
+        for pattern, label in self.required:
+            self.message(source.match(RegExp(pattern, 'i')), label)
+        if self.all_tests_are_fine:
+            self.next_question()
 
 
-class Q01(Question):
+class Q01(TD2Question):
     """01 - Projection sur COUREUR"""
     statement = "<h2>1. Liste des coureurs</h2><p>Afficher <code>NomCoureur</code>, <code>Prenom</code> et <code>DateNais</code>.</p>"
     expected = [
@@ -151,7 +146,7 @@ class Q01(Question):
     solution = "SELECT NomCoureur, Prenom, DateNais FROM COUREUR;"
 
 
-class Q02(Question):
+class Q02(TD2Question):
     """02 - Projection sur COURSE"""
     statement = "<h2>2. Date et lieu des courses</h2><p>Afficher <code>DateCourse</code> et <code>Ville</code>.</p>"
     expected = [
@@ -165,7 +160,7 @@ class Q02(Question):
     solution = "SELECT DateCourse, Ville FROM COURSE;"
 
 
-class Q03(Question):
+class Q03(TD2Question):
     """03 - Selection course 203"""
     statement = "<h2>3. Resultats de la course 203</h2><p>Afficher <code>NumLicence</code> et <code>Temps</code>.</p>"
     expected = [
@@ -176,7 +171,7 @@ class Q03(Question):
     solution = "SELECT NumLicence, Temps FROM RESULTAT WHERE NumCourse = 203;"
 
 
-class Q04(Question):
+class Q04(TD2Question):
     """04 - Courses a Paris"""
     statement = "<h2>4. Courses organisees a Paris</h2><p>Afficher <code>NumCourse</code> et <code>DateCourse</code>.</p>"
     expected = [
@@ -186,14 +181,14 @@ class Q04(Question):
     solution = "SELECT NumCourse, DateCourse FROM COURSE WHERE Ville = 'Paris';"
 
 
-class Q05(Question):
+class Q05(TD2Question):
     """05 - Coureurs nes avant 1970"""
     statement = "<h2>5. Coureurs nes avant 1970</h2><p>Afficher uniquement <code>NomCoureur</code>.</p>"
     expected = [{'NomCoureur': 'Quinqueton'}, {'NomCoureur': 'Lochard'}]
     solution = "SELECT NomCoureur FROM COUREUR WHERE DateNais < '1970-01-01';"
 
 
-class Q06A(Question):
+class Q06A(TD2Question):
     """06a - Rang entre 10 et 15 avec BETWEEN"""
     statement = "<h2>6a. Rangs de 10 a 15</h2><p>Afficher <code>NumCourse</code> et <code>NumLicence</code> en utilisant <code>BETWEEN</code>.</p>"
     expected = [
@@ -205,7 +200,7 @@ class Q06A(Question):
     solution = "SELECT NumCourse, NumLicence FROM RESULTAT WHERE Rang BETWEEN 10 AND 15;"
 
 
-class Q06B(Question):
+class Q06B(TD2Question):
     """06b - Rang entre 10 et 15 avec comparaisons"""
     statement = "<h2>6b. Autre formulation</h2><p>Reprendre la question 6 sans utiliser <code>BETWEEN</code>.</p>"
     expected = Q06A.expected
@@ -214,7 +209,7 @@ class Q06B(Question):
     solution = "SELECT NumCourse, NumLicence FROM RESULTAT WHERE Rang >= 10 AND Rang <= 15;"
 
 
-class Q07A(Question):
+class Q07A(TD2Question):
     """07a - Novembre 2012 avec MONTH et YEAR"""
     statement = """<h2>7a. Courses de novembre 2012</h2>
 <p>Afficher <code>NumCourse</code> sous l'alias <code>Numero de course</code>, puis <code>Ville</code>.</p>
@@ -228,7 +223,7 @@ class Q07A(Question):
     solution = "SELECT NumCourse AS [Numero de course], Ville\nFROM COURSE\nWHERE MONTH(DateCourse) = 11 AND YEAR(DateCourse) = 2012;"
 
 
-class Q07B(Question):
+class Q07B(TD2Question):
     """07b - Novembre 2012 avec un intervalle"""
     statement = """<h2>7b. Novembre 2012 sans fonction</h2>
 <p>Obtenir le meme tableau en utilisant un intervalle de dates et sans <code>MONTH</code> ni <code>YEAR</code>.</p>"""
@@ -238,7 +233,7 @@ class Q07B(Question):
     solution = "SELECT NumCourse AS [Numero de course], Ville\nFROM COURSE\nWHERE DateCourse >= '2012-11-01' AND DateCourse < '2012-12-01';"
 
 
-class Q08(Question):
+class Q08(TD2Question):
     """08 - Date de naissance NULL"""
     statement = "<h2>8. Date de naissance non renseignee</h2><p>Afficher le nom des coureurs concernes.</p>"
     expected = [{'NomCoureur': 'Berry'}]
@@ -246,7 +241,7 @@ class Q08(Question):
     solution = "SELECT NomCoureur FROM COUREUR WHERE DateNais IS NULL;"
 
 
-class Q09(Question):
+class Q09(TD2Question):
     """09 - Ville commencant par L"""
     statement = "<h2>9. Ville commencant par L</h2><p>Afficher uniquement <code>NumCourse</code>.</p>"
     expected = [{'NumCourse': 202}, {'NumCourse': 203}]
@@ -254,7 +249,7 @@ class Q09(Question):
     solution = "SELECT NumCourse FROM COURSE WHERE Ville LIKE 'L%';"
 
 
-class Q10(Question):
+class Q10(TD2Question):
     """10 - Coureurs par age croissant"""
     statement = """<h2>10. Coureurs par age croissant</h2>
 <p>Afficher <code>NomCoureur</code>, <code>Prenom</code> et <code>DateNais</code>. Les plus jeunes sont donc affiches d'abord ; la date inconnue vient en dernier.</p>"""
@@ -271,7 +266,7 @@ class Q10(Question):
     solution = "SELECT NomCoureur, Prenom, DateNais FROM COUREUR ORDER BY DateNais DESC;"
 
 
-class Q11(Question):
+class Q11(TD2Question):
     """11 - Tri sur deux colonnes"""
     statement = "<h2>11. Tri sur deux niveaux</h2><p>Afficher <code>Ville</code> et <code>DateCourse</code> : ville croissante, puis date decroissante.</p>"
     expected = [
@@ -288,7 +283,7 @@ class Q11(Question):
     solution = "SELECT Ville, DateCourse FROM COURSE ORDER BY Ville ASC, DateCourse DESC;"
 
 
-class Q12A(Question):
+class Q12A(TD2Question):
     """12a - Courses 202 ou 204 avec OR"""
     statement = "<h2>12a. Participants aux courses 202 ou 204</h2><p>Afficher sans doublon les <code>NumLicence</code>, tries, en utilisant <code>OR</code>.</p>"
     expected = [{'NumLicence': 1}, {'NumLicence': 2}, {'NumLicence': 3}]
@@ -298,7 +293,7 @@ class Q12A(Question):
     solution = "SELECT DISTINCT NumLicence FROM RESULTAT WHERE NumCourse = 202 OR NumCourse = 204 ORDER BY NumLicence;"
 
 
-class Q12B(Question):
+class Q12B(TD2Question):
     """12b - Courses 202 ou 204 avec IN"""
     statement = "<h2>12b. Meme resultat avec IN</h2><p>Utiliser cette fois <code>IN</code>.</p>"
     expected = Q12A.expected
@@ -308,7 +303,7 @@ class Q12B(Question):
     solution = "SELECT DISTINCT NumLicence FROM RESULTAT WHERE NumCourse IN (202, 204) ORDER BY NumLicence;"
 
 
-class Q12C(Question):
+class Q12C(TD2Question):
     """12c - Courses 202 ou 204 avec UNION"""
     statement = "<h2>12c. Meme resultat avec UNION</h2><p>Utiliser deux requetes reunies par <code>UNION</code>.</p>"
     expected = Q12A.expected
@@ -318,14 +313,14 @@ class Q12C(Question):
     solution = "SELECT NumLicence FROM RESULTAT WHERE NumCourse = 202\nUNION\nSELECT NumLicence FROM RESULTAT WHERE NumCourse = 204\nORDER BY NumLicence;"
 
 
-class Q13(Question):
+class Q13(TD2Question):
     """13 - Novembre 2012 hors Paris"""
     statement = "<h2>13. Course de novembre 2012 hors Paris</h2><p>Afficher <code>NumCourse</code>, <code>DateCourse</code> et <code>Ville</code>.</p>"
     expected = [{'NumCourse': 202, 'DateCourse': '2012-11-05', 'Ville': 'Longueau'}]
     solution = "SELECT NumCourse, DateCourse, Ville FROM COURSE\nWHERE MONTH(DateCourse) = 11 AND YEAR(DateCourse) = 2012 AND Ville <> 'Paris';"
 
 
-class Q14(Question):
+class Q14(TD2Question):
     """14 - Resultats de la licence 2"""
     statement = "<h2>14. Resultats de la licence 2</h2><p>Afficher <code>NumCourse</code>, <code>NumLicence</code> et <code>Temps</code>.</p>"
     expected = [
@@ -335,7 +330,7 @@ class Q14(Question):
     solution = "SELECT NumCourse, NumLicence, Temps FROM RESULTAT WHERE NumLicence = 2;"
 
 
-class Q15A(Question):
+class Q15A(TD2Question):
     """15a - Resultat de Lochard avec JOIN"""
     statement = "<h2>15a. Resultat de Lochard</h2><p>Afficher <code>NumCourse</code> et <code>Temps</code> avec une jointure explicite.</p>"
     expected = [{'NumCourse': 203, 'Temps': '01:40:00'}]
@@ -343,7 +338,7 @@ class Q15A(Question):
     solution = "SELECT R.NumCourse, R.Temps FROM RESULTAT R\nJOIN COUREUR C ON C.NumLicence = R.NumLicence\nWHERE C.NomCoureur = 'Lochard';"
 
 
-class Q15B(Question):
+class Q15B(TD2Question):
     """15b - Resultat de Lochard avec produit et selection"""
     statement = "<h2>15b. Autre formulation</h2><p>Obtenir le meme resultat avec les deux tables dans <code>FROM</code> et les conditions dans <code>WHERE</code>.</p>"
     expected = Q15A.expected
@@ -351,7 +346,7 @@ class Q15B(Question):
     solution = "SELECT R.NumCourse, R.Temps FROM RESULTAT R, COUREUR C\nWHERE C.NumLicence = R.NumLicence AND C.NomCoureur = 'Lochard';"
 
 
-class Q16(Question):
+class Q16(TD2Question):
     """16 - Tous les resultats avec les noms"""
     statement = "<h2>16. Resultats de tous les coureurs</h2><p>Afficher <code>NumCourse</code>, <code>NomCoureur</code>, <code>Temps</code> et <code>Rang</code>.</p>"
     expected = [
@@ -366,7 +361,7 @@ class Q16(Question):
     solution = "SELECT R.NumCourse, C.NomCoureur, R.Temps, R.Rang\nFROM RESULTAT R JOIN COUREUR C ON C.NumLicence = R.NumLicence;"
 
 
-class Q17A(Question):
+class Q17A(TD2Question):
     """17a - Resultats a Lille avec JOIN"""
     statement = "<h2>17a. Resultats de la course a Lille</h2><p>Afficher <code>NumCourse</code>, <code>NumLicence</code>, <code>Temps</code> et <code>Rang</code> avec <code>JOIN</code>.</p>"
     expected = [
@@ -378,7 +373,7 @@ class Q17A(Question):
     solution = "SELECT R.NumCourse, R.NumLicence, R.Temps, R.Rang\nFROM RESULTAT R JOIN COURSE C ON C.NumCourse = R.NumCourse\nWHERE C.Ville = 'Lille';"
 
 
-class Q17B(Question):
+class Q17B(TD2Question):
     """17b - Resultats a Lille avec produit et selection"""
     statement = "<h2>17b. Autre formulation</h2><p>Obtenir le meme resultat avec les deux tables dans <code>FROM</code> et les conditions dans <code>WHERE</code>.</p>"
     expected = Q17A.expected
@@ -386,7 +381,7 @@ class Q17B(Question):
     solution = "SELECT R.NumCourse, R.NumLicence, R.Temps, R.Rang\nFROM RESULTAT R, COURSE C\nWHERE C.NumCourse = R.NumCourse AND C.Ville = 'Lille';"
 
 
-class Q18(Question):
+class Q18(TD2Question):
     """18 - Resultats de juin 2013"""
     statement = "<h2>18. Courses de juin 2013</h2><p>Afficher <code>NumCourse</code>, <code>NomCoureur</code>, <code>Prenom</code>, <code>Temps</code> et <code>Rang</code>.</p>"
     expected = [
@@ -399,7 +394,7 @@ class Q18(Question):
     solution = "SELECT R.NumCourse, C.NomCoureur, C.Prenom, R.Temps, R.Rang\nFROM RESULTAT R\nJOIN COURSE CO ON CO.NumCourse = R.NumCourse\nJOIN COUREUR C ON C.NumLicence = R.NumLicence\nWHERE MONTH(CO.DateCourse) = 6 AND YEAR(CO.DateCourse) = 2013;"
 
 
-class Q19(Question):
+class Q19(TD2Question):
     """19 - Departement 80 et temps inferieur a 1 h 30"""
     statement = """<h2>19. Participants dans le departement 80 en moins de 1 h 30</h2>
 <p>Afficher <code>NomCoureur</code>, <code>Prenom</code>, <code>Temps</code> et <code>Ville</code>.</p>"""

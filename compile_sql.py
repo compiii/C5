@@ -16,6 +16,10 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
     def run_compiler(self, source):
         """Compile, display errors and return the executable"""
         try:
+            meaningful_source = source.replace(RegExp('--[^\\n]*', 'g'), '').strip()
+            if not meaningful_source:
+                self.post('compiler', 'Saisissez une requete SQL avant de lancer l’analyse.')
+                return None
             database = self.quest.sql_database()
             if database:
                 eval('alasql(' + JSON.stringify(database) + ')')
@@ -28,8 +32,8 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             if not Array.isArray(executable):
                 executable = [executable]
             elif (len(executable) == 0
-                  or (typeof(executable[0]) == 'object'
-                      and not Array.isArray(executable[0]))):
+                  or (not Array.isArray(executable[0])
+                      and isNaN(executable[0]))):
                 executable = [executable]
             self.post('compiler', 'Compilation sans erreur')
             return executable

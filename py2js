@@ -40,9 +40,9 @@ case $1 in
 		SESSION=$(
 			echo
 			echo 'if not Compile.worker: eval("new Session([' \
-                $(grep '^class.*(Question)' $PY |
+				 $(grep -E '^class Q[A-Za-z0-9_]+\(' $PY |
                   tr '\n' '%' |
-                  sed -r -e 's/%*class *([^%]*)\(Question\)[^%]*/new \1(),/g' -e 's/,%$//'
+                  sed -r -e 's/%*class *([^%( ]*)\([^%]*/new \1(),/g' -e 's/,%$//'
                  ) '])")'
 			)
 		[ -d $1 ] && chmod 700 $1
