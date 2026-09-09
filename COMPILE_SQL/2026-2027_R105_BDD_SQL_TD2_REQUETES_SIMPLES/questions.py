@@ -80,23 +80,39 @@ au moteur SQL embarque.</p></details>
 """
 
 
-def td2_sql_database():
+def td2_sql_database(self=None):
     return DATABASE
 
-def td2_normalize_sql(source):
+def td2_normalize_sql(self=None, source=None):
+    # Python binds ``self`` while the generated JavaScript method does not.
+    if source is None:
+        source = self
     pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
     return source.replace(pattern, '$1(DATE($2))')
 
-def td2_default_answer():
+def td2_default_answer(self=None):
     return "-- Ecrivez une seule requete SELECT.\nSELECT "
 
-def td2_expected_answer():
-    return this.solution # pylint: disable=undefined-variable
+def td2_expected_answer(self=None):
+    if self is None:
+        self = this # pylint: disable=undefined-variable
+    return self.solution
 
-def td2_question():
-    return this.statement + SCHEMA # pylint: disable=undefined-variable
+def td2_question(self=None):
+    if self is None:
+        self = this # pylint: disable=undefined-variable
+    return self.statement + SCHEMA
 
-def td2_canonical(rows, keep_order=False):
+def td2_canonical(self=None, rows=None, keep_order=False):
+    # JavaScript calls this shared function with (rows, keep_order), whereas
+    # Python also supplies the bound instance before these arguments.
+    try:
+        javascript_call = Array.isArray(self)
+    except NameError:
+        javascript_call = False
+    if javascript_call:
+        keep_order = rows
+        rows = self
     canonical_rows = []
     for row in rows:
         keys = Object.keys(row)
@@ -110,20 +126,22 @@ def td2_canonical(rows, keep_order=False):
         canonical_rows.sort()
     return JSON.stringify(canonical_rows)
 
-def td2_tester():
-    results = this.worker.executable # pylint: disable=undefined-variable
+def td2_tester(self=None):
+    if self is None:
+        self = this # pylint: disable=undefined-variable
+    results = self.worker.executable
     one_query = results and len(results) == 1 and Array.isArray(results[0])
-    this.message(one_query, 'Une seule requete SELECT est executee')
+    self.message(one_query, 'Une seule requete SELECT est executee')
     if not one_query:
         return
-    correct = (this.canonical(results[0], this.ordered)
-               == this.canonical(this.expected, this.ordered))
-    this.message(correct, 'Le tableau obtenu est exactement celui attendu')
-    source = this.worker.source
-    for pattern, label in this.required:
-        this.message(source.match(RegExp(pattern, 'i')), label)
-    if this.all_tests_are_fine:
-        this.next_question()
+    correct = (self.canonical(results[0], self.ordered)
+               == self.canonical(self.expected, self.ordered))
+    self.message(correct, 'Le tableau obtenu est exactement celui attendu')
+    source = self.worker.source
+    for pattern, label in self.required:
+        self.message(source.match(RegExp(pattern, 'i')), label)
+    if self.all_tests_are_fine:
+        self.next_question()
 
 
 class Q01(Question):
