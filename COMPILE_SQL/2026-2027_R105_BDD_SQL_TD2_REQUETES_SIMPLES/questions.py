@@ -80,61 +80,63 @@ au moteur SQL embarque.</p></details>
 """
 
 
-class TD2Question(Question):
-    """Shared behaviour; its name keeps it out of the question list."""
+def td2_sql_database(self):
+    return DATABASE
 
-    expected = []
+def td2_normalize_sql(self, source):
+    pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
+    return source.replace(pattern, '$1(DATE($2))')
+
+def td2_default_answer(self):
+    return "-- Ecrivez une seule requete SELECT.\nSELECT "
+
+def td2_expected_answer(self):
+    return self.solution
+
+def td2_question(self):
+    return self.statement + SCHEMA
+
+def td2_canonical(self, rows, keep_order=False):
+    canonical_rows = []
+    for row in rows:
+        keys = Object.keys(row)
+        keys.sort()
+        values = []
+        for key in keys:
+            value = JSON.stringify(row[key]) or 'null'
+            values.append(key + '=' + value)
+        canonical_rows.append(values.join('|'))
+    if not keep_order:
+        canonical_rows.sort()
+    return JSON.stringify(canonical_rows)
+
+def td2_tester(self):
+    results = self.worker.executable
+    one_query = results and len(results) == 1 and Array.isArray(results[0])
+    self.message(one_query, 'Une seule requete SELECT est executee')
+    if not one_query:
+        return
+    correct = (self.canonical(results[0], self.ordered)
+               == self.canonical(self.expected, self.ordered))
+    self.message(correct, 'Le tableau obtenu est exactement celui attendu')
+    source = self.worker.source
+    for pattern, label in self.required:
+        self.message(source.match(RegExp(pattern, 'i')), label)
+    if self.all_tests_are_fine:
+        self.next_question()
+
+
+class Q01(Question):
+    """01 - Projection sur COUREUR"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
     ordered = False
     required = []
-
-    def sql_database(self):
-        return DATABASE
-
-    def normalize_sql(self, source):
-        pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
-        return source.replace(pattern, '$1(DATE($2))')
-
-    def default_answer(self):
-        return "-- Ecrivez une seule requete SELECT.\nSELECT "
-
-    def expected_answer(self):
-        return self.solution
-
-    def question(self):
-        return self.statement + SCHEMA
-
-    def canonical(self, rows, keep_order=False):
-        canonical_rows = []
-        for row in rows:
-            keys = Object.keys(row)
-            keys.sort()
-            values = []
-            for key in keys:
-                value = JSON.stringify(row[key]) or 'null'
-                values.append(key + '=' + value)
-            canonical_rows.append(values.join('|'))
-        if not keep_order:
-            canonical_rows.sort()
-        return JSON.stringify(canonical_rows)
-
-    def tester(self):
-        results = self.worker.executable
-        one_query = results and len(results) == 1 and Array.isArray(results[0])
-        self.message(one_query, 'Une seule requete SELECT est executee')
-        if not one_query:
-            return
-        correct = (self.canonical(results[0], self.ordered)
-                   == self.canonical(self.expected, self.ordered))
-        self.message(correct, 'Le tableau obtenu est exactement celui attendu')
-        source = self.worker.source
-        for pattern, label in self.required:
-            self.message(source.match(RegExp(pattern, 'i')), label)
-        if self.all_tests_are_fine:
-            self.next_question()
-
-
-class Q01(TD2Question):
-    """01 - Projection sur COUREUR"""
     statement = "<h2>1. Liste des coureurs</h2><p>Afficher <code>NomCoureur</code>, <code>Prenom</code> et <code>DateNais</code>.</p>"
     expected = [
         {'NomCoureur': 'Quinqueton', 'Prenom': 'Joel', 'DateNais': '1962-11-29'},
@@ -146,8 +148,17 @@ class Q01(TD2Question):
     solution = "SELECT NomCoureur, Prenom, DateNais FROM COUREUR;"
 
 
-class Q02(TD2Question):
+class Q02(Question):
     """02 - Projection sur COURSE"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>2. Date et lieu des courses</h2><p>Afficher <code>DateCourse</code> et <code>Ville</code>.</p>"
     expected = [
         {'DateCourse': '2012-11-29', 'Ville': 'Paris'},
@@ -160,8 +171,17 @@ class Q02(TD2Question):
     solution = "SELECT DateCourse, Ville FROM COURSE;"
 
 
-class Q03(TD2Question):
+class Q03(Question):
     """03 - Selection course 203"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>3. Resultats de la course 203</h2><p>Afficher <code>NumLicence</code> et <code>Temps</code>.</p>"
     expected = [
         {'NumLicence': 4, 'Temps': '01:35:00'},
@@ -171,8 +191,17 @@ class Q03(TD2Question):
     solution = "SELECT NumLicence, Temps FROM RESULTAT WHERE NumCourse = 203;"
 
 
-class Q04(TD2Question):
+class Q04(Question):
     """04 - Courses a Paris"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>4. Courses organisees a Paris</h2><p>Afficher <code>NumCourse</code> et <code>DateCourse</code>.</p>"
     expected = [
         {'NumCourse': 201, 'DateCourse': '2012-11-29'},
@@ -181,15 +210,33 @@ class Q04(TD2Question):
     solution = "SELECT NumCourse, DateCourse FROM COURSE WHERE Ville = 'Paris';"
 
 
-class Q05(TD2Question):
+class Q05(Question):
     """05 - Coureurs nes avant 1970"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>5. Coureurs nes avant 1970</h2><p>Afficher uniquement <code>NomCoureur</code>.</p>"
     expected = [{'NomCoureur': 'Quinqueton'}, {'NomCoureur': 'Lochard'}]
     solution = "SELECT NomCoureur FROM COUREUR WHERE DateNais < '1970-01-01';"
 
 
-class Q06A(TD2Question):
+class Q06A(Question):
     """06a - Rang entre 10 et 15 avec BETWEEN"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>6a. Rangs de 10 a 15</h2><p>Afficher <code>NumCourse</code> et <code>NumLicence</code> en utilisant <code>BETWEEN</code>.</p>"
     expected = [
         {'NumCourse': 204, 'NumLicence': 1},
@@ -200,8 +247,17 @@ class Q06A(TD2Question):
     solution = "SELECT NumCourse, NumLicence FROM RESULTAT WHERE Rang BETWEEN 10 AND 15;"
 
 
-class Q06B(TD2Question):
+class Q06B(Question):
     """06b - Rang entre 10 et 15 avec comparaisons"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>6b. Autre formulation</h2><p>Reprendre la question 6 sans utiliser <code>BETWEEN</code>.</p>"
     expected = Q06A.expected
     required = [('Rang\\s*&gt;=\\s*10|Rang\\s*>=\\s*10', 'La borne inferieure est testee'),
@@ -209,8 +265,17 @@ class Q06B(TD2Question):
     solution = "SELECT NumCourse, NumLicence FROM RESULTAT WHERE Rang >= 10 AND Rang <= 15;"
 
 
-class Q07A(TD2Question):
+class Q07A(Question):
     """07a - Novembre 2012 avec MONTH et YEAR"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = """<h2>7a. Courses de novembre 2012</h2>
 <p>Afficher <code>NumCourse</code> sous l'alias <code>Numero de course</code>, puis <code>Ville</code>.</p>
 <p>Utiliser les fonctions <code>MONTH</code> et <code>YEAR</code>.</p>"""
@@ -223,8 +288,17 @@ class Q07A(TD2Question):
     solution = "SELECT NumCourse AS [Numero de course], Ville\nFROM COURSE\nWHERE MONTH(DateCourse) = 11 AND YEAR(DateCourse) = 2012;"
 
 
-class Q07B(TD2Question):
+class Q07B(Question):
     """07b - Novembre 2012 avec un intervalle"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = """<h2>7b. Novembre 2012 sans fonction</h2>
 <p>Obtenir le meme tableau en utilisant un intervalle de dates et sans <code>MONTH</code> ni <code>YEAR</code>.</p>"""
     expected = Q07A.expected
@@ -233,24 +307,51 @@ class Q07B(TD2Question):
     solution = "SELECT NumCourse AS [Numero de course], Ville\nFROM COURSE\nWHERE DateCourse >= '2012-11-01' AND DateCourse < '2012-12-01';"
 
 
-class Q08(TD2Question):
+class Q08(Question):
     """08 - Date de naissance NULL"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>8. Date de naissance non renseignee</h2><p>Afficher le nom des coureurs concernes.</p>"
     expected = [{'NomCoureur': 'Berry'}]
     required = [('\\bIS\\s+NULL\\b', 'La requete teste IS NULL')]
     solution = "SELECT NomCoureur FROM COUREUR WHERE DateNais IS NULL;"
 
 
-class Q09(TD2Question):
+class Q09(Question):
     """09 - Ville commencant par L"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>9. Ville commencant par L</h2><p>Afficher uniquement <code>NumCourse</code>.</p>"
     expected = [{'NumCourse': 202}, {'NumCourse': 203}]
     required = [('\\bLIKE\\b', 'La requete utilise LIKE')]
     solution = "SELECT NumCourse FROM COURSE WHERE Ville LIKE 'L%';"
 
 
-class Q10(TD2Question):
+class Q10(Question):
     """10 - Coureurs par age croissant"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = """<h2>10. Coureurs par age croissant</h2>
 <p>Afficher <code>NomCoureur</code>, <code>Prenom</code> et <code>DateNais</code>. Les plus jeunes sont donc affiches d'abord ; la date inconnue vient en dernier.</p>"""
     expected = [
@@ -266,8 +367,17 @@ class Q10(TD2Question):
     solution = "SELECT NomCoureur, Prenom, DateNais FROM COUREUR ORDER BY DateNais DESC;"
 
 
-class Q11(TD2Question):
+class Q11(Question):
     """11 - Tri sur deux colonnes"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>11. Tri sur deux niveaux</h2><p>Afficher <code>Ville</code> et <code>DateCourse</code> : ville croissante, puis date decroissante.</p>"
     expected = [
         {'Ville': 'Amiens', 'DateCourse': '2013-09-03'},
@@ -283,8 +393,17 @@ class Q11(TD2Question):
     solution = "SELECT Ville, DateCourse FROM COURSE ORDER BY Ville ASC, DateCourse DESC;"
 
 
-class Q12A(TD2Question):
+class Q12A(Question):
     """12a - Courses 202 ou 204 avec OR"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>12a. Participants aux courses 202 ou 204</h2><p>Afficher sans doublon les <code>NumLicence</code>, tries, en utilisant <code>OR</code>.</p>"
     expected = [{'NumLicence': 1}, {'NumLicence': 2}, {'NumLicence': 3}]
     ordered = True
@@ -293,8 +412,17 @@ class Q12A(TD2Question):
     solution = "SELECT DISTINCT NumLicence FROM RESULTAT WHERE NumCourse = 202 OR NumCourse = 204 ORDER BY NumLicence;"
 
 
-class Q12B(TD2Question):
+class Q12B(Question):
     """12b - Courses 202 ou 204 avec IN"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>12b. Meme resultat avec IN</h2><p>Utiliser cette fois <code>IN</code>.</p>"
     expected = Q12A.expected
     ordered = True
@@ -303,8 +431,17 @@ class Q12B(TD2Question):
     solution = "SELECT DISTINCT NumLicence FROM RESULTAT WHERE NumCourse IN (202, 204) ORDER BY NumLicence;"
 
 
-class Q12C(TD2Question):
+class Q12C(Question):
     """12c - Courses 202 ou 204 avec UNION"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>12c. Meme resultat avec UNION</h2><p>Utiliser deux requetes reunies par <code>UNION</code>.</p>"
     expected = Q12A.expected
     ordered = True
@@ -313,15 +450,33 @@ class Q12C(TD2Question):
     solution = "SELECT NumLicence FROM RESULTAT WHERE NumCourse = 202\nUNION\nSELECT NumLicence FROM RESULTAT WHERE NumCourse = 204\nORDER BY NumLicence;"
 
 
-class Q13(TD2Question):
+class Q13(Question):
     """13 - Novembre 2012 hors Paris"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>13. Course de novembre 2012 hors Paris</h2><p>Afficher <code>NumCourse</code>, <code>DateCourse</code> et <code>Ville</code>.</p>"
     expected = [{'NumCourse': 202, 'DateCourse': '2012-11-05', 'Ville': 'Longueau'}]
     solution = "SELECT NumCourse, DateCourse, Ville FROM COURSE\nWHERE MONTH(DateCourse) = 11 AND YEAR(DateCourse) = 2012 AND Ville <> 'Paris';"
 
 
-class Q14(TD2Question):
+class Q14(Question):
     """14 - Resultats de la licence 2"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>14. Resultats de la licence 2</h2><p>Afficher <code>NumCourse</code>, <code>NumLicence</code> et <code>Temps</code>.</p>"
     expected = [
         {'NumCourse': 202, 'NumLicence': 2, 'Temps': '01:20:00'},
@@ -330,24 +485,51 @@ class Q14(TD2Question):
     solution = "SELECT NumCourse, NumLicence, Temps FROM RESULTAT WHERE NumLicence = 2;"
 
 
-class Q15A(TD2Question):
+class Q15A(Question):
     """15a - Resultat de Lochard avec JOIN"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>15a. Resultat de Lochard</h2><p>Afficher <code>NumCourse</code> et <code>Temps</code> avec une jointure explicite.</p>"
     expected = [{'NumCourse': 203, 'Temps': '01:40:00'}]
     required = [('\\bJOIN\\b', 'La requete utilise JOIN')]
     solution = "SELECT R.NumCourse, R.Temps FROM RESULTAT R\nJOIN COUREUR C ON C.NumLicence = R.NumLicence\nWHERE C.NomCoureur = 'Lochard';"
 
 
-class Q15B(TD2Question):
+class Q15B(Question):
     """15b - Resultat de Lochard avec produit et selection"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>15b. Autre formulation</h2><p>Obtenir le meme resultat avec les deux tables dans <code>FROM</code> et les conditions dans <code>WHERE</code>.</p>"
     expected = Q15A.expected
     required = [('FROM\\s+RESULTAT[^;]+,\\s*COUREUR|FROM\\s+COUREUR[^;]+,\\s*RESULTAT', 'Les deux tables figurent dans FROM')]
     solution = "SELECT R.NumCourse, R.Temps FROM RESULTAT R, COUREUR C\nWHERE C.NumLicence = R.NumLicence AND C.NomCoureur = 'Lochard';"
 
 
-class Q16(TD2Question):
+class Q16(Question):
     """16 - Tous les resultats avec les noms"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>16. Resultats de tous les coureurs</h2><p>Afficher <code>NumCourse</code>, <code>NomCoureur</code>, <code>Temps</code> et <code>Rang</code>.</p>"
     expected = [
         {'NumCourse': 204, 'NomCoureur': 'Quinqueton', 'Temps': '01:25:00', 'Rang': 15},
@@ -361,8 +543,17 @@ class Q16(TD2Question):
     solution = "SELECT R.NumCourse, C.NomCoureur, R.Temps, R.Rang\nFROM RESULTAT R JOIN COUREUR C ON C.NumLicence = R.NumLicence;"
 
 
-class Q17A(TD2Question):
+class Q17A(Question):
     """17a - Resultats a Lille avec JOIN"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>17a. Resultats de la course a Lille</h2><p>Afficher <code>NumCourse</code>, <code>NumLicence</code>, <code>Temps</code> et <code>Rang</code> avec <code>JOIN</code>.</p>"
     expected = [
         {'NumCourse': 203, 'NumLicence': 4, 'Temps': '01:35:00', 'Rang': 8},
@@ -373,16 +564,34 @@ class Q17A(TD2Question):
     solution = "SELECT R.NumCourse, R.NumLicence, R.Temps, R.Rang\nFROM RESULTAT R JOIN COURSE C ON C.NumCourse = R.NumCourse\nWHERE C.Ville = 'Lille';"
 
 
-class Q17B(TD2Question):
+class Q17B(Question):
     """17b - Resultats a Lille avec produit et selection"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>17b. Autre formulation</h2><p>Obtenir le meme resultat avec les deux tables dans <code>FROM</code> et les conditions dans <code>WHERE</code>.</p>"
     expected = Q17A.expected
     required = [('FROM\\s+RESULTAT[^;]+,\\s*COURSE|FROM\\s+COURSE[^;]+,\\s*RESULTAT', 'Les deux tables figurent dans FROM')]
     solution = "SELECT R.NumCourse, R.NumLicence, R.Temps, R.Rang\nFROM RESULTAT R, COURSE C\nWHERE C.NumCourse = R.NumCourse AND C.Ville = 'Lille';"
 
 
-class Q18(TD2Question):
+class Q18(Question):
     """18 - Resultats de juin 2013"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = "<h2>18. Courses de juin 2013</h2><p>Afficher <code>NumCourse</code>, <code>NomCoureur</code>, <code>Prenom</code>, <code>Temps</code> et <code>Rang</code>.</p>"
     expected = [
         {'NumCourse': 204, 'NomCoureur': 'Quinqueton', 'Prenom': 'Joel', 'Temps': '01:25:00', 'Rang': 15},
@@ -394,8 +603,17 @@ class Q18(TD2Question):
     solution = "SELECT R.NumCourse, C.NomCoureur, C.Prenom, R.Temps, R.Rang\nFROM RESULTAT R\nJOIN COURSE CO ON CO.NumCourse = R.NumCourse\nJOIN COUREUR C ON C.NumLicence = R.NumLicence\nWHERE MONTH(CO.DateCourse) = 6 AND YEAR(CO.DateCourse) = 2013;"
 
 
-class Q19(TD2Question):
+class Q19(Question):
     """19 - Departement 80 et temps inferieur a 1 h 30"""
+    sql_database = td2_sql_database
+    normalize_sql = td2_normalize_sql
+    default_answer = td2_default_answer
+    expected_answer = td2_expected_answer
+    question = td2_question
+    canonical = td2_canonical
+    tester = td2_tester
+    ordered = False
+    required = []
     statement = """<h2>19. Participants dans le departement 80 en moins de 1 h 30</h2>
 <p>Afficher <code>NomCoureur</code>, <code>Prenom</code>, <code>Temps</code> et <code>Ville</code>.</p>"""
     expected = [{'NomCoureur': 'Berry', 'Prenom': 'Pierre', 'Temps': '01:20:00', 'Ville': 'Longueau'}]
