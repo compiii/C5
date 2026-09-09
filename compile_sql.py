@@ -56,7 +56,10 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             content = []
             for result in self.executable:
                 if isNaN(result):
-                    content.append('<table border>\n')
+                    # The generic executor replaces the first literal space in
+                    # its payload with a non-breaking one. A newline keeps the
+                    # HTML attribute separator valid after that transformation.
+                    content.append('<table\nborder>\n')
                     columns = {}
                     for line in result:
                         for key in line:
