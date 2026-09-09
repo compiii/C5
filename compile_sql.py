@@ -68,7 +68,12 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
                     for line in result:
                         content.append('<tr>')
                         for key in columns:
-                            content.append('<td>' + html(str(line[key])) + '</td>')
+                            serialized = JSON.stringify(line[key])
+                            if serialized:
+                                value = html(str(line[key]))
+                            else:
+                                value = '<i>NULL</i>'
+                            content.append('<td>' + value + '</td>')
                         content.append('</tr>\n')
                     content.append('</table>\n')
                 else:
