@@ -80,23 +80,23 @@ au moteur SQL embarque.</p></details>
 """
 
 
-def td2_sql_database(self):
+def td2_sql_database():
     return DATABASE
 
-def td2_normalize_sql(self, source):
+def td2_normalize_sql(source):
     pattern = RegExp('\\b(MONTH|YEAR)\\s*\\(\\s*(DateCourse|DateNais)\\s*\\)', 'gi')
     return source.replace(pattern, '$1(DATE($2))')
 
-def td2_default_answer(self):
+def td2_default_answer():
     return "-- Ecrivez une seule requete SELECT.\nSELECT "
 
-def td2_expected_answer(self):
-    return self.solution
+def td2_expected_answer():
+    return this.solution # pylint: disable=undefined-variable
 
-def td2_question(self):
-    return self.statement + SCHEMA
+def td2_question():
+    return this.statement + SCHEMA # pylint: disable=undefined-variable
 
-def td2_canonical(self, rows, keep_order=False):
+def td2_canonical(rows, keep_order=False):
     canonical_rows = []
     for row in rows:
         keys = Object.keys(row)
@@ -110,20 +110,20 @@ def td2_canonical(self, rows, keep_order=False):
         canonical_rows.sort()
     return JSON.stringify(canonical_rows)
 
-def td2_tester(self):
-    results = self.worker.executable
+def td2_tester():
+    results = this.worker.executable # pylint: disable=undefined-variable
     one_query = results and len(results) == 1 and Array.isArray(results[0])
-    self.message(one_query, 'Une seule requete SELECT est executee')
+    this.message(one_query, 'Une seule requete SELECT est executee')
     if not one_query:
         return
-    correct = (self.canonical(results[0], self.ordered)
-               == self.canonical(self.expected, self.ordered))
-    self.message(correct, 'Le tableau obtenu est exactement celui attendu')
-    source = self.worker.source
-    for pattern, label in self.required:
-        self.message(source.match(RegExp(pattern, 'i')), label)
-    if self.all_tests_are_fine:
-        self.next_question()
+    correct = (this.canonical(results[0], this.ordered)
+               == this.canonical(this.expected, this.ordered))
+    this.message(correct, 'Le tableau obtenu est exactement celui attendu')
+    source = this.worker.source
+    for pattern, label in this.required:
+        this.message(source.match(RegExp(pattern, 'i')), label)
+    if this.all_tests_are_fine:
+        this.next_question()
 
 
 class Q01(Question):
