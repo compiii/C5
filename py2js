@@ -4,6 +4,12 @@
 PY=$1.py
 JS=$1.js
 JSON=$1.json
+TMP_SOURCE=$(mktemp "${TMPDIR:-/tmp}/c5-py2js.XXXXXX") || exit 1
+
+cleanup() {
+    rm -f "$TMP_SOURCE"
+}
+trap cleanup EXIT HUP INT TERM
 
 if [ -e $JS ]
 then
@@ -59,8 +65,8 @@ case $1 in
 		;;
 esac
 
-echo "$BEFORE" >$PY.xxx
-if cat $FILES >>$PY.xxx
+echo "$BEFORE" >"$TMP_SOURCE"
+if cat $FILES >>"$TMP_SOURCE"
 then
     :
 else
@@ -68,9 +74,9 @@ else
     exit 1
 fi
 
-echo "$SESSION" >> $PY.xxx
+echo "$SESSION" >>"$TMP_SOURCE"
 
-if nodejs RapydScript/bin/rapydscript --prettify --bare $PY.xxx >$JS
+if nodejs RapydScript/bin/rapydscript --prettify --bare "$TMP_SOURCE" >$JS
 then
     echo "$PY → $JS OK"
     if [ "$COMPILER" != "" ]
@@ -86,7 +92,6 @@ fi
 if [ "$COMPILER" != "" ]
 then
 	if cat options.py compile.py $COMPILER.py question_before.py $PY question_after.py |
-		tee xxx.py |
 		(cd $(dirname $JS) ; python3) >$JSON
     then
         echo "$PY → $JSON OK"
@@ -96,5 +101,3 @@ then
         exit 1
     fi
 fi
-
-rm $PY.xxx
