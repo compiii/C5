@@ -17,6 +17,13 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
         'sql_result_format': 'html',
     }
 
+    def pad_right(self, value, width):
+        """Pad without str.ljust, which RapydScript does not provide."""
+        value = str(value)
+        while len(value) < width:
+            value += ' '
+        return value
+
     def text_table(self, result):
         """Render rows like the text output of a command-line SQL client."""
         columns = []
@@ -43,7 +50,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
         lines = [separator]
         header = '|'
         for index, key in enumerate(columns):
-            header += ' ' + str(key).ljust(widths[index]) + ' |'
+            header += ' ' + self.pad_right(key, widths[index]) + ' |'
         lines.append(header)
         lines.append(separator)
         for row in result:
@@ -54,7 +61,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
                     value = str(row[key])
                 else:
                     value = 'NULL'
-                line += ' ' + value.ljust(widths[index]) + ' |'
+                line += ' ' + self.pad_right(value, widths[index]) + ' |'
             lines.append(line)
         lines.append(separator)
         lines.append(str(len(result)) + ' rows in set')

@@ -326,9 +326,9 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         else:
             more = ''
         if self.options['display_executor_copy']:
-            more += (' <button id="executor_copy" type="button"'
+            more += (' <label id="executor_copy"'
                      + ' onclick="ccccc.copy_executor_result()">'
-                     + self.options['executor_copy_button'] + '</button>')
+                     + self.options['executor_copy_button'] + '</label>')
         more += '<span class="fnsn" ondblclick="ccccc.send_mail()">'
         if self.options['GRADING']:
             more += (
