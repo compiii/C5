@@ -11,7 +11,46 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
     """SQL compiler and evaluator"""
     execution_result = ''
     execution_returns = None
-    default_options = {'language': 'SQL', 'extension': 'sql'}
+    default_options = {
+        'language': 'SQL',
+        'extension': 'sql',
+        'sql_result_format': 'html',
+    }
+
+    def text_table(self, result):
+        """Render rows like the text output of a command-line SQL client."""
+        columns = []
+        for row in result:
+            for key in row:
+                if key not in columns:
+                    columns.append(key)
+        widths = []
+        for key in columns:
+            width = len(str(key))
+            for row in result:
+                serialized = JSON.stringify(row[key])
+                value = str(row[key]) if serialized else 'NULL'
+                width = max(width, len(value))
+            widths.append(width)
+        separator = '+'
+        for width in widths:
+            separator += '-' * (width + 2) + '+'
+        lines = [separator]
+        header = '|'
+        for index, key in enumerate(columns):
+            header += ' ' + str(key).ljust(widths[index]) + ' |'
+        lines.append(header)
+        lines.append(separator)
+        for row in result:
+            line = '|'
+            for index, key in enumerate(columns):
+                serialized = JSON.stringify(row[key])
+                value = str(row[key]) if serialized else 'NULL'
+                line += ' ' + value.ljust(widths[index]) + ' |'
+            lines.append(line)
+        lines.append(separator)
+        lines.append(str(len(result)) + ' rows in set')
+        return '\n'.join(lines)
 
     def run_compiler(self, source):
         """Compile, display errors and return the executable"""
@@ -56,6 +95,9 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             content = []
             for result in self.executable:
                 if isNaN(result):
+                    if self.options['sql_result_format'] == 'text':
+                        content.append(self.text_table(result) + '\n')
+                        continue
                     # The generic executor replaces the first literal space in
                     # its payload with a non-breaking one. A newline keeps the
                     # HTML attribute separator valid after that transformation.
@@ -81,7 +123,12 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
                     content.append('</table>\n')
                 else:
                     content.append('Command return value: ' + html(str(result)) + '\n')
-            self.execution_returns = ''.join(content)
+            if self.options['sql_result_format'] == 'text':
+                self.execution_returns = ('<pre class="executor_output">'
+                    + html(''.join(content)) + '</pre>')
+            else:
+                self.execution_returns = ('<div class="executor_output">'
+                    + ''.join(content) + '</div>')
             self.post('executor', self.execution_returns)
         except Error as err: # pylint: disable=undefined-variable
             try:

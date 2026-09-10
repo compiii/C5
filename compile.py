@@ -168,19 +168,22 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         self.execution_returns = None
         self.post('executor', self.executor_initial_content())
         self.post('state', "running")
-        self.post('tester', self.tester_initial_content())
+        if self.options['run_tester']:
+            self.post('tester', self.tester_initial_content())
         self.phase = 0
         self.nr_input = 0
-        self.quest.all_tests_are_fine = True
-        self.quest.tester_realtime_init()
+        if self.options['run_tester']:
+            self.quest.all_tests_are_fine = True
+            self.quest.tester_realtime_init()
         try:
             self.run_executor()
         except Error as error: # pylint: disable bare-except
-            self.post('tester',
+            destination = 'tester' if self.options['run_tester'] else 'executor'
+            self.post(destination,
                 '<b style="color: #F00">' + str(error) + '</b><pre>'
                 + html(error.stack) + '</pre>')
             return
-        if self.run_tester_after_exec:
+        if self.run_tester_after_exec and self.options['run_tester']:
             self.run_tester()
         self.post('time', self.time_initial_content())
     def restart(self):
@@ -206,7 +209,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         quest.random_restart()
         self.post('default', [quest.index, quest.default_answer()])
         quest.random_restart()
-        self.post('expected_answer', [quest.index, quest.expected_answer()])
+        if self.options['display_expected_answer']:
+            self.post('expected_answer', [quest.index, quest.expected_answer()])
         quest.random_restart()
         self.post('grading_ladder', [quest.index, quest.grading_ladder()])
         self.post('current_question', [self.current_question, quest.round])
@@ -318,6 +322,10 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
                         + self.options['executor_title_button'] + '</label>')
         else:
             more = ''
+        if self.options['display_executor_copy']:
+            more += (' <button id="executor_copy" type="button"'
+                     + ' onclick="ccccc.copy_executor_result()">'
+                     + self.options['executor_copy_button'] + '</button>')
         more += '<span class="fnsn" ondblclick="ccccc.send_mail()">'
         if self.options['GRADING']:
             more += (

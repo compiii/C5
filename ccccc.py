@@ -790,6 +790,24 @@ class CCCCC: # pylint: disable=too-many-public-methods
         a.href = window.URL.createObjectURL(bb)
         a.click()
 
+    def copy_executor_result(self):
+        """Copy the latest execution result as plain text."""
+        output = self.executor.querySelector('.executor_output')
+        if not output:
+            self.popup_message("Aucun résultat à copier.")
+            return
+        button = document.getElementById('executor_copy')
+        label = self.options['executor_copy_button']
+        def copied():
+            if button:
+                button.textContent = '✓'
+                def restore_label():
+                    button.textContent = label
+                setTimeout(restore_label, 1200)
+        def failed():
+            self.popup_message("La copie automatique a échoué. Sélectionnez le résultat manuellement.")
+        navigator.clipboard.writeText(output.textContent).then(copied).catch(failed)
+
     def scheduler(self): # pylint: disable=too-many-branches,too-many-statements
         """Send a new job if free and update the screen"""
         if not self.allow_edit or self.compositing:
