@@ -238,6 +238,7 @@ class CCCCC: # pylint: disable=too-many-public-methods
     top = None # Top page HTML element
     source = None # The source code to compile
     old_source = None
+    executor_copy_text = ''
     highlight_errors = {}
     expected_answer = {}
     grading_ladder = {}
@@ -792,8 +793,12 @@ class CCCCC: # pylint: disable=too-many-public-methods
 
     def copy_executor_result(self):
         """Copy the latest execution result as plain text."""
-        output = self.executor.querySelector('.executor_output')
-        if not output:
+        text = self.executor_copy_text
+        if not text:
+            output = self.executor.querySelector('.executor_output')
+            if output:
+                text = output.textContent
+        if not text:
             self.popup_message("Aucun résultat à copier.")
             return
         button = document.getElementById('executor_copy')
@@ -806,7 +811,7 @@ class CCCCC: # pylint: disable=too-many-public-methods
                 setTimeout(restore_label, 1200)
         def failed():
             self.popup_message("La copie automatique a échoué. Sélectionnez le résultat manuellement.")
-        navigator.clipboard.writeText(output.textContent).then(copied).catch(failed)
+        navigator.clipboard.writeText(text).then(copied).catch(failed)
 
     def scheduler(self): # pylint: disable=too-many-branches,too-many-statements
         """Send a new job if free and update the screen"""
@@ -2842,6 +2847,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                             span.style.clear = 'left'
                     self.executor.appendChild(span) # pylint: disable=unsubscriptable-object
                     self.add_ticket_to_images(span)
+        elif what == 'executor_copy':
+            self.executor_copy_text = value
         elif what == 'index':
             links = []
             tips = []

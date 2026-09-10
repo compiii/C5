@@ -166,6 +166,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         """If the compilation was successful, run the execution"""
         self.execution_result = ''
         self.execution_returns = None
+        self.post('executor_copy', '')
         self.post('executor', self.executor_initial_content())
         self.post('state', "running")
         if self.options['run_tester']:
