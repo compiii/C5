@@ -29,7 +29,10 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             width = len(str(key))
             for row in result:
                 serialized = JSON.stringify(row[key])
-                value = str(row[key]) if serialized else 'NULL'
+                if serialized:
+                    value = str(row[key])
+                else:
+                    value = 'NULL'
                 width = max(width, len(value))
             widths.append(width)
         separator = '+'
@@ -45,7 +48,10 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             line = '|'
             for index, key in enumerate(columns):
                 serialized = JSON.stringify(row[key])
-                value = str(row[key]) if serialized else 'NULL'
+                if serialized:
+                    value = str(row[key])
+                else:
+                    value = 'NULL'
                 line += ' ' + value.ljust(widths[index]) + ' |'
             lines.append(line)
         lines.append(separator)

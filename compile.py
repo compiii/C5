@@ -178,7 +178,10 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         try:
             self.run_executor()
         except Error as error: # pylint: disable bare-except
-            destination = 'tester' if self.options['run_tester'] else 'executor'
+            if self.options['run_tester']:
+                destination = 'tester'
+            else:
+                destination = 'executor'
             self.post(destination,
                 '<b style="color: #F00">' + str(error) + '</b><pre>'
                 + html(error.stack) + '</pre>')
