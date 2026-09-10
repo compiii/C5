@@ -37,7 +37,9 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             widths.append(width)
         separator = '+'
         for width in widths:
-            separator += '-' * (width + 2) + '+'
+            for _unused in range(width + 2):
+                separator += '-'
+            separator += '+'
         lines = [separator]
         header = '|'
         for index, key in enumerate(columns):
