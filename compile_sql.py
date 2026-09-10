@@ -74,18 +74,18 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             if not meaningful_source:
                 self.post('compiler', 'Saisissez une requete SQL avant de lancer l’analyse.')
                 return None
+            structure = meaningful_source.replace(
+                RegExp("'(?:''|[^'])*'", 'g'), "''")
             if self.options['sql_single_select']:
-                structure = meaningful_source.replace(
-                    RegExp("'(?:''|[^'])*'", 'g'), "''")
                 if not structure.match(RegExp('^SELECT\\b', 'i')):
                     self.post('compiler', '<error>Une seule requete SELECT est attendue.</error>')
-                    return None
-                if structure[-1] != ';':
-                    self.post('compiler', '<error>La requete SELECT doit se terminer par un point-virgule.</error>')
                     return None
                 if ';' in structure[:-1]:
                     self.post('compiler', '<error>Une seule requete SELECT est autorisee.</error>')
                     return None
+            if self.options['sql_check_semicomma'] and structure[-1] != ';':
+                self.post('compiler', '<error>Chaque instruction SQL doit se terminer par un point-virgule.</error>')
+                return None
             database = self.quest.sql_database()
             if database:
                 eval('alasql(' + JSON.stringify(database) + ')')
