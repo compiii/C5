@@ -280,7 +280,11 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
                 and os.path.getmtime(self.file_config) >= os.path.getmtime(self.file_cf)):
             with open(self.file_config, 'r', encoding='utf-8') as file:
                 content = file.read()
-            self.config = json.loads(content)
+            # Keep newly introduced defaults and question options when loading
+            # a configuration written by an older C5 version. Values that were
+            # explicitly saved in Config still take precedence.
+            saved_config = json.loads(content)
+            self.config.update(saved_config)
             self.parse_position = len(content)
             self.file_config_need_update = False
             self.time = time.time()
