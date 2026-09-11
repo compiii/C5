@@ -36,10 +36,12 @@ def profile(uid):
     request = urllib.request.Request(base + "/" + uid, headers={"Authorization": "Bearer " + token})
     with opener.open(request, timeout=5) as response:
         value = json.loads(response.read(16385))
-    if (value.get("schema") != 1 or value.get("uid") != uid or
+    if (value.get("schema") != 2 or value.get("uid") != uid or
+            not re.fullmatch(r"[0-9a-f]{32}", value.get("person_id", "")) or
+            type(value.get("deleted")) is not bool or
             type(value.get("c5_access")) is not bool or
             type(value.get("auth_version")) is not int or
-            any(not isinstance(value.get(k), str) for k in ("fn", "sn", "mail"))):
+            any(not isinstance(value.get(k), str) for k in ("canonical_uid", "fn", "sn", "mail"))):
         raise ValueError("Invalid users API response")
     value["time"] = int(time.time())
     return value
