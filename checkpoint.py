@@ -2915,8 +2915,10 @@ try:
 except SyntaxError:
     INFO = {}
 if 'building' not in INFO:
-    INFO['building'] = (OPTIONS.default_building if OPTIONS.default_building in BUILDINGS
-                        else BUILDINGS_SORTED[0])
+    if OPTIONS.default_building in BUILDINGS:
+        INFO['building'] = OPTIONS.default_building
+    else:
+        INFO['building'] = BUILDINGS_SORTED[0]
 if 'start' not in OPTIONS:
     OPTIONS['start'] = OPTIONS['stop'] = nice_date(0)
 
