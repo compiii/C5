@@ -361,8 +361,45 @@ async def record_deferred_grade(request:Request) -> Response:
     question_id = str(post['question_id'])
     entry = [int(time.time()), session.login, question_id, result]
     history = course.append_deferred_grade(login, entry)
-    return answer('window.parent.ccccc.deferred_grade_recorded('
+    return answer('ccccc.deferred_grade_recorded('
                   + json.dumps(history) + ')')
+
+async def deferred_grade_session(request:Request) -> Response:
+    """Orchestrate explicit copy grading for every student in Grade mode."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    if course.state != 'Grade':
+        raise web.HTTPConflict(text='Deferred grading is available only in Grade mode')
+    students = sorted(path.name for path in pathlib.Path(course.dir_log).iterdir()
+                      if path.is_dir())
+    frames = ''.join(
+        f'<iframe hidden src="/grade/{course.course}/{student}?ticket={session.ticket}" '
+        f'data-student="{html.escape(student)}"></iframe>' for student in students)
+    return answer(session.header() + '<h1>Correction automatique différée</h1>'
+        + '<p id="progress">Préparation…</p>' + frames + '''<script>
+        const frames = Array.from(document.querySelectorAll('iframe'));
+        let done = 0;
+        function refresh() {
+          document.getElementById('progress').textContent =
+            done + ' / ' + frames.length + ' copies traitées';
+        }
+        function launch(frame) {
+          if (frame.dataset.started) return;
+          frame.dataset.started = '1';
+          frame.contentWindow.postMessage({c5DeferredGrade: 'copy'}, location.origin);
+        }
+        for (const frame of frames) {
+          frame.onload = () => launch(frame);
+          if (frame.contentDocument && frame.contentDocument.readyState === 'complete') launch(frame);
+        }
+        addEventListener('message', event => {
+          if (event.origin === location.origin && event.data === 'c5DeferredGradeDone') {
+            done += 1; refresh();
+          }
+        });
+        refresh();
+        </script>''')
 
 async def load_student_infos() -> None:
     """Load all student info in order to answer quickly"""
@@ -2756,6 +2793,7 @@ def main():
                     web.get('/computer/{course}/{building}/{column}/{line}', computer),
                     web.get('/record_feedback/{course}/{student}/{feedback}', record_feedback),
                     web.get('/grade/{course}/{login}', grade),
+                    web.get('/deferred_grade_session/{course}', deferred_grade_session),
                     web.get('/zip/{course}', my_zip),
                     web.get('/git/{course}', my_git),
                     web.get('/media/{course}/{value}', get_media),

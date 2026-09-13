@@ -43,7 +43,10 @@ def onmessage(event):
         elif event.data[0] == 'deferred_grade':
             question = event.data[1]
             source = event.data[2]
-            result = Compile.worker.questions[question].deferred_grading(source)
+            try:
+                result = Compile.worker.questions[question].deferred_grading(source)
+            except Error as error:
+                result = {'status': 'error', 'message': str(error)}
             Compile.worker.post('deferred_grade_result', [question, result])
 
     else:
@@ -76,6 +79,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         trace("Worker: start")
         Compile.worker = self
         self.questions, self.pedagogy = flatten_pedagogy(questions)
+        self.options['QUESTION_COUNT'] = len(self.questions)
         self.allow_tip = True
         self.allow_goto = True
         self.pedagogy_states = {}

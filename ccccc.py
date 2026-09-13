@@ -254,6 +254,9 @@ class CCCCC: # pylint: disable=too-many-public-methods
     do_not_clear = {}
     inputs = {} # User input in execution bloc
     grading_history = ''
+    deferred_grading_history = ''
+    deferred_grading_queue = []
+    deferred_grading_notify_parent = False
     focus_on_next_input = False
     cursor_position = 0
     do_coloring = "default"
@@ -2614,6 +2617,16 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 content.append('<button onclick="ccccc.set_all_grades(0)">premières cases</button> ')
                 content.append('<button onclick="ccccc.set_all_grades(1)">premières cases sauf malus</button> ')
                 content.append('<button onclick="ccccc.set_all_grades(-1)">dernières cases</button>')
+            if GRADING:
+                content.append('<fieldset><legend>Correction différée</legend>')
+                content.append('<button onclick="ccccc.request_deferred_scope(event, \'question\')">Question</button> ')
+                content.append('<button onclick="ccccc.request_deferred_scope(event, \'exercise\')">Exercice</button> ')
+                content.append('<button onclick="ccccc.request_deferred_scope(event, \'copy\')">Copie</button> ')
+                content.append('<a target="_blank" href="deferred_grade_session/' + COURSE
+                    + '?ticket=' + TICKET + '">Toutes les copies</a>')
+                content.append('<div>Automatique (historique séparé)</div>'
+                    + '<pre id="deferred_grade_result"></pre>'
+                    + '<div>Manuel / final : barème ci-dessous</div></fieldset>')
             self.nr_grades = self.get_grades().get_html(content, self.source)
             self.grading.id = "grading"
             if GRADING:
@@ -2623,19 +2636,56 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         else:
             self.question.innerHTML = ''.join(content)
         if GRADING:
-            content.append('<button id="deferred_grade" '
-                + 'onclick="ccccc.request_deferred_grade(event)">'
-                + 'Correction automatique</button>')
-            content.append('<pre id="deferred_grade_result"></pre>')
+            self.deferred_grade_recorded(DEFERRED_GRADES)
             update_feedback(WHERE[10])
 
-    def request_deferred_grade(self, event):
-        """Ask the worker to grade only the current answer, on explicit command."""
-        stop_event(event)
+    def pedagogy_node_contains(self, node, question):
+        if node['answer_index'] == question:
+            return True
+        for child in node['children']:
+            if self.pedagogy_node_contains(child, question):
+                return True
+        return False
+
+    def pedagogy_collect_questions(self, node, questions):
+        if node['answer_index'] is not None:
+            questions.append(node['answer_index'])
+        for child in node['children']:
+            self.pedagogy_collect_questions(child, questions)
+
+    def request_deferred_scope(self, event, scope, notify_parent=False):
+        """Queue an explicit question, exercise or copy correction."""
+        if event:
+            stop_event(event)
         if not self.grading_allowed():
             return
-        self.update_source()
-        self.worker.postMessage(['deferred_grade', self.current_question, self.source])
+        questions = []
+        pedagogy = self.options['pedagogy']
+        if scope == 'question':
+            questions = [self.current_question]
+        elif scope == 'exercise' and pedagogy and pedagogy['explicit']:
+            for root in pedagogy['roots']:
+                if root['kind'] == 'exercise' and self.pedagogy_node_contains(root, self.current_question):
+                    self.pedagogy_collect_questions(root, questions)
+                    break
+        else:
+            questions = list(range(self.options['QUESTION_COUNT']))
+        self.deferred_grading_queue = questions
+        self.deferred_grading_notify_parent = notify_parent
+        self.run_next_deferred_grade()
+
+    def run_next_deferred_grade(self):
+        if not len(self.deferred_grading_queue):
+            if self.deferred_grading_notify_parent:
+                window.parent.postMessage('c5DeferredGradeDone', location.origin)
+                self.deferred_grading_notify_parent = False
+            return
+        question = self.deferred_grading_queue.pop(0)
+        answer = self.options['ANSWERS'][question]
+        source = answer and answer[0] or ''
+        if question == self.current_question:
+            source = self.source
+        self.worker.postMessage(['deferred_grade', question, source])
 
     def deferred_grade_recorded(self, history):
         """Display the separately persisted automatic history."""
@@ -2997,6 +3047,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     'question_id': question_id,
                     'result': JSON.stringify(result),
                 }, 'record_deferred_grade/' + COURSE + '?ticket=' + TICKET)
+            self.run_next_deferred_grade()
         elif what in ('tester', 'compiler', 'question', 'time'):
             if not value:
                 return
@@ -3880,4 +3931,10 @@ def grading_toggle(element):
         record('record_feedback/' + COURSE + '/' + STUDENT + '/1')
 
 ccccc = CCCCC()
+def deferred_grade_message(event):
+    """Receive an authenticated same-origin session batch command."""
+    if (event.origin == location.origin and event.data
+            and event.data.c5DeferredGrade == 'copy' and GRADING):
+        ccccc.request_deferred_scope(None, 'copy', True)
+window.addEventListener('message', deferred_grade_message)
 G = Grapic(ccccc)
