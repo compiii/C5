@@ -351,6 +351,7 @@ class CCCCC: # pylint: disable=too-many-public-methods
         for question_index, question in JOURNAL.questions.Items():
             answers[question_index] = [question.source, question.good, question.round]
         self.options['ANSWERS'] = answers # All the questions/answers recorded
+        self.options['PEDAGOGY_STATES'] = JOURNAL.pedagogy_states
 
         self.worker_url = BASE + '/' + COURSE + "?ticket=" + TICKET + location.hash
         if REAL_GRADING:
@@ -1091,6 +1092,7 @@ class CCCCC: # pylint: disable=too-many-public-methods
         replace = self.source
         if old == replace:
             return
+        self.set_pedagogy_state('started')
         self.record_pending_goto()
         SHARED_WORKER.timestamp()
         rep = replace
@@ -2437,6 +2439,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 self.record_pending_goto()
                 self.save_button.setAttribute('state', 'wait')
                 SHARED_WORKER.tag(tag)
+                self.set_pedagogy_state('saved')
                 self.update_save_history()
                 if self.options['save_unlock']:
                     if not JOURNAL.questions[self.current_question + 1]:
@@ -2679,6 +2682,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             self.journal_question = JOURNAL.questions[the_question]
             if not self.journal_question:
                 return
+            self.set_pedagogy_state('visited')
             if self.journal_question.start + 1 == self.journal_question.head:
                 if not REAL_GRADING: # If not default answer: do set one
                     # Initialize with the default answer
@@ -3100,6 +3104,19 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             else:
                 the_round = 0
             self.worker.postMessage(['goto', index, the_round])
+
+    def set_pedagogy_state(self, state):
+        """Advance the current explicit question state without downgrading it."""
+        pedagogy = self.options['pedagogy']
+        if not pedagogy or not pedagogy['explicit']:
+            return
+        node_id = pedagogy['flat_ids'][self.current_question]
+        ranks = {'unvisited': 0, 'visited': 1, 'started': 2, 'saved': 3, 'completed': 4}
+        old = JOURNAL.pedagogy_states[node_id] or 'unvisited'
+        if ranks[state] <= ranks[old]:
+            return
+        SHARED_WORKER.pedagogy_state(node_id, state)
+        self.worker.postMessage(['pedagogy_state', node_id, state])
 
     def get_element_box(self, element):
         #if element.offsetWidth == 0:

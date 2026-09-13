@@ -356,6 +356,7 @@ class Journal:
             'b': bind(self.action_b, self),
             'd': bind(self.action_d, self),
             'R': bind(self.action_R, self),
+            'E': bind(self.action_E, self),
         }
         self.questions = {}
         self.cache = {}
@@ -363,6 +364,7 @@ class Journal:
         self.bubbles = []
         self.timestamps = []
         self.blur_times = {}
+        self.pedagogy_states = {}
         self.clear_pending_goto()
         self.offset_x = None
         self.offset_y = None
@@ -483,7 +485,7 @@ class Journal:
             if action in 'PIDLbHd': # Position/Insert/Delete/Line/Bubble/Height/Default
                 lines.append(line)
                 index -= 1
-            elif action in 'TOC#ScgtFBR':
+            elif action in 'TOC#ScgtFBRE':
                 # Time/Open/Close/Debug/compile/good/tag/Focus/Blur/Round
                 index -= 1
                 if index < 0:
@@ -562,6 +564,12 @@ class Journal:
     def action_R(self, _value, _start):
         """Question next version"""
         self.questions[self.question].round += 1
+
+    def action_E(self, value, _start):
+        """Persist a pedagogical state by stable node identifier."""
+        state, node_id = value.split(' ', 1)
+        if state in ('visited', 'started', 'saved', 'completed'):
+            self.pedagogy_states[node_id] = state
 
     def evaluate_fast(self, lines):
         """Evaluate all these lines in the current state"""
@@ -1856,6 +1864,10 @@ def create_shared_worker(login='', hook=None, readonly=False):
         """Question good answer"""
         shared_worker.post('g')
     shared_worker.good = shared_worker_good
+    def shared_worker_pedagogy_state(node_id, state):
+        """Record progression using a stable pedagogical identifier."""
+        shared_worker.post('E' + state + ' ' + node_id)
+    shared_worker.pedagogy_state = shared_worker_pedagogy_state
     def shared_worker_bubble(login, pos_start, pos_end, line, column, width, height, comment):
         """bubble text"""
         shared_worker.post('b+' + login + ' ' + pos_start + ' ' + pos_end + ' ' + line + ' ' + column
