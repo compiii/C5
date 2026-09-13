@@ -17,7 +17,10 @@ def validate_points(points):
     """Points are local maxima; totals are computed recursively."""
     if points is None:
         return 0
-    if (not isinstance(points, int) and not isinstance(points, float)) or points < 0:
+    # Keep this test executable in both CPython and generated RapydScript.
+    # Referencing Python's ``int`` or ``float`` types creates undefined browser
+    # globals. Author input is validated strictly by the CPython generation pass.
+    if points * 0 != 0 or points < 0:
         raise ValueError('Pedagogical points must be a non-negative number')
     return points
 
