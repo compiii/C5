@@ -41,10 +41,18 @@ class Exercise(PedagogicalNode):
     """Top-level pedagogical unit."""
     kind = 'exercise'
 
+    def __init__(self, node_id, title='', children=None, points=0):
+        # RapydScript subclasses do not reliably inherit a Python constructor.
+        PedagogicalNode.__init__(self, node_id, title, children, points)
+
 
 class Section(PedagogicalNode):
     """Structural group without its own answer."""
     kind = 'section'
+
+    def __init__(self, node_id, title='', children=None, points=0):
+        # Keep the browser and CPython construction paths identical.
+        PedagogicalNode.__init__(self, node_id, title, children, points)
 
 
 class QuestionNode(PedagogicalNode):
