@@ -1,5 +1,12 @@
 """Demonstration of recursive exercises, sections and questions."""
 
+# The source editor may execute this file without the metadata-generation
+# preamble. In that context it must remain an inert, valid questionnaire source.
+try:
+    GENERATING_QUESTIONS_JSON
+except NameError:
+    GENERATING_QUESTIONS_JSON = False
+
 COURSE_OPTIONS = {
     'title': 'Démonstrateur de structure pédagogique',
     'state': 'Ready',
