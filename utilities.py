@@ -243,6 +243,10 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
                     self.questions = json.loads(file.read())
         except FileNotFoundError:
             self.questions = []
+        if self.questions:
+            self.pedagogy = self.questions[0].get('options', {}).get('pedagogy')
+        else:
+            self.pedagogy = None
 
     def get_config(self):
         """Config not leaking informations to students"""
@@ -252,6 +256,8 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         del config['messages']
         del config['active_teacher_room']
         del config['git_url']
+        if self.pedagogy:
+            config['pedagogy'] = self.pedagogy
         return config
 
     def load(self):
@@ -270,7 +276,9 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         self.config = copy.deepcopy(self.config) # To be really safe
         self.config['default_building'] = sorted(os.listdir('BUILDINGS'))[0]
         if self.questions:
-            self.config.update(self.questions[0]['options']) # Course defaults
+            question_options = dict(self.questions[0]['options'])
+            question_options.pop('pedagogy', None) # Derived metadata is never persisted.
+            self.config.update(question_options) # Course defaults
         else:
             print('******* No questions in', self.file_py)
 

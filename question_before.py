@@ -17,14 +17,21 @@ def load(filename):
         return ''
 
 LOAD_GRADING = load
+question_classes = []
+question_instances = []
+pedagogy_metadata = None
+
 class Session(Session): # pylint: disable=too-few-public-methods
     """Create a session with all the questions"""
     def __init__(self, questions):
+        global pedagogy_metadata # pylint: disable=global-statement
+        flattened, pedagogy_metadata = flatten_pedagogy(questions)
         question_classes.clear()
-        for question in questions:
+        question_instances.clear()
+        for question in flattened:
             question_classes.append(question.__class__)
+            question_instances.append(question)
 
-question_classes = []
 class Question: # pylint: disable=too-few-public-methods
     """Create the list of created question."""
     def __init_subclass__(cls, /, **kwargs):

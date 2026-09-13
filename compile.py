@@ -67,7 +67,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
     def __init__(self, questions):
         trace("Worker: start")
         Compile.worker = self
-        self.questions = questions
+        self.questions, self.pedagogy = flatten_pedagogy(questions)
         self.allow_tip = True
         self.allow_goto = True
 
@@ -373,6 +373,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         return '#' + self.nr_eval + ' ' + (millisecs() - self.start_time) + 'ms' + more
     def index_initial_content(self):
         """Used by the subclass"""
+        if self.pedagogy['explicit']:
+            return self.pedagogy_index_initial_content()
         texts = ['<style></style>']
         tips = []
         for i, quest in enumerate(self.questions):
@@ -400,3 +402,73 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
                           + '" style="' + quest.get_style()
                           + '" ' + link + '>' + str(i+1) + '</div>')
         return ('<div class="questions"><div class="tips">' + ''.join(tips) + '</div>' + ''.join(texts) + '</div>')
+
+    def pedagogy_question_state(self, index):
+        """Return navigation CSS and click handler for an answerable tree node."""
+        link = ''
+        html_class = ['pedagogy_answer']
+        if self.allow_goto:
+            link = 'onclick="ccccc.goto_question(' + index + ')"'
+        if index == self.current_question:
+            html_class.append('current')
+            link = ''
+        if self.question_yet_solved(index):
+            html_class.append('good')
+        elif (index <= self.current_question_max
+                or not self.options['sequential']
+                or self.options['GRADING']
+                or self.options['ANSWERS'][index]):
+            html_class.append('possible')
+        else:
+            html_class.append('locked')
+            link = ''
+        return ' '.join(html_class), link
+
+    def pedagogy_node_content(self, node, depth):
+        """Render one recursive pedagogical node."""
+        index = node['answer_index']
+        html_class = ['pedagogy_node', 'pedagogy_' + node['kind']]
+        link = ''
+        if index is not None:
+            state, link = self.pedagogy_question_state(index)
+            html_class.append(state)
+        title = node['title'] or node['id']
+        points = node['points']
+        if node['children']:
+            points = node['total_points']
+        points_text = ''
+        if points:
+            points_text = '<span class="pedagogy_points">' + str(points) + '</span>'
+        content = [
+            '<div class="' + ' '.join(html_class) + '" data-node-id="'
+            + node['id'] + '" style="--pedagogy-depth:' + str(depth) + '" ' + link + '>',
+            '<span class="pedagogy_label">' + self.escape(title) + '</span>',
+            points_text,
+            '</div>'
+        ]
+        for child in node['children']:
+            content.append(self.pedagogy_node_content(child, depth + 1))
+        return ''.join(content)
+
+    def pedagogy_index_initial_content(self):
+        """Tree navigation for explicitly structured sessions."""
+        content = ["""
+            <style>
+            .pedagogy_tree { overflow:auto; height:100%; text-align:left }
+            .pedagogy_node { box-sizing:border-box; min-height:2em; padding:0.35em 0.4em;
+                padding-left:calc(0.4em + var(--pedagogy-depth) * 1.15em);
+                border-bottom:1px solid #DDD; display:flex; gap:0.5em; align-items:center }
+            .pedagogy_exercise { font-weight:bold; background:#EEF }
+            .pedagogy_section { font-weight:bold; background:#F6F6F6 }
+            .pedagogy_answer.possible { cursor:pointer }
+            .pedagogy_answer.current { background:#FFB }
+            .pedagogy_answer.good { background:#DFD }
+            .pedagogy_answer.locked { color:#888 }
+            .pedagogy_label { flex:1 }
+            .pedagogy_points { font-size:80%; color:#555 }
+            </style><div class="pedagogy_tree">
+        """]
+        for root in self.pedagogy['roots']:
+            content.append(self.pedagogy_node_content(root, 0))
+        content.append('</div>')
+        return ''.join(content)

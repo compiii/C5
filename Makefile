@@ -1,7 +1,7 @@
 
 COMPILERS = $(shell ls compile_*.py | grep -v compile_server.py)
 
-JS/%.js: JS %.py compatibility.py options.py compile.py question.py xxx_local.py
+JS/%.js: JS %.py compatibility.py options.py compile.py pedagogy.py question.py xxx_local.py
 	@./py2js $*
 %.js: %.py
 	@./py2js $*

@@ -50,7 +50,7 @@ case $1 in
 		;;
     compile_*)
 		COMPILER=
-		FILES="compatibility.py xxx_local.py options.py compile.py question.py $PY"
+		FILES="compatibility.py xxx_local.py options.py compile.py pedagogy.py question.py $PY"
 		JS=JS/$JS
 		;;
     bare_*)
@@ -91,7 +91,7 @@ fi
 
 if [ "$COMPILER" != "" ]
 then
-	if cat options.py compile.py $COMPILER.py question_before.py $PY question_after.py |
+	if cat options.py compile.py $COMPILER.py pedagogy.py question_before.py $PY question_after.py |
 		(cd $(dirname $JS) ; python3) >$JSON
     then
         echo "$PY → $JSON OK"
