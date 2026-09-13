@@ -41,11 +41,14 @@ class PedagogicalNode:
     """A structural node; subclasses define its pedagogical kind."""
     kind = 'section'
 
-    def __init__(self, node_id, title='', children=None, points=0):
+    def __init__(self, node_id, title='', children=None, points=None,
+                 cumulative_points=False):
         self.node_id = validate_pedagogical_id(node_id)
         self.title = title or ''
         self.children = children or []
+        self.has_points = points is not None
         self.points = validate_points(points)
+        self.cumulative_points = cumulative_points
         self.question = None
 
 
@@ -53,26 +56,32 @@ class Exercise(PedagogicalNode):
     """Top-level pedagogical unit."""
     kind = 'exercise'
 
-    def __init__(self, node_id, title='', children=None, points=0):
+    def __init__(self, node_id, title='', children=None, points=None,
+                 cumulative_points=False):
         # RapydScript subclasses do not reliably inherit a Python constructor.
-        PedagogicalNode.__init__(self, node_id, title, children, points)
+        PedagogicalNode.__init__(self, node_id, title, children, points,
+                                 cumulative_points)
 
 
 class Section(PedagogicalNode):
     """Structural group without its own answer."""
     kind = 'section'
 
-    def __init__(self, node_id, title='', children=None, points=0):
+    def __init__(self, node_id, title='', children=None, points=None,
+                 cumulative_points=False):
         # Keep the browser and CPython construction paths identical.
-        PedagogicalNode.__init__(self, node_id, title, children, points)
+        PedagogicalNode.__init__(self, node_id, title, children, points,
+                                 cumulative_points)
 
 
 class QuestionNode(PedagogicalNode):
     """Question context, optionally with its own answer and child questions."""
     kind = 'question'
 
-    def __init__(self, node_id, question=None, title='', children=None, points=0):
-        PedagogicalNode.__init__(self, node_id, title, children, points)
+    def __init__(self, node_id, question=None, title='', children=None, points=None,
+                 cumulative_points=False):
+        PedagogicalNode.__init__(self, node_id, title, children, points,
+                                 cumulative_points)
         self.question = question
 
 
@@ -114,12 +123,18 @@ def flatten_pedagogy(value):
             child_metadata = visit(child, child_ancestors)
             pedagogy_append(children, child_metadata)
             total += child_metadata['total_points']
+        display_points = node.points
+        if node.cumulative_points or not node.has_points:
+            display_points = total
         return {
             'id': node.node_id,
             'kind': node.kind,
             'title': node.title,
             'points': node.points,
             'total_points': total,
+            'has_points': node.has_points,
+            'cumulative_points': node.cumulative_points,
+            'display_points': display_points,
             'answer_index': index,
             'children': children,
         }
@@ -144,6 +159,9 @@ def flatten_pedagogy(value):
                 'title': question.__doc__ or '',
                 'points': 0,
                 'total_points': 0,
+                'has_points': False,
+                'cumulative_points': False,
+                'display_points': 0,
                 'answer_index': index,
                 'children': [],
             })
