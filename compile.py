@@ -96,6 +96,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         for key in config:
             if key not in self.options:
                 self.options[key] = config[key]
+        if 'pedagogy' in self.options and self.options['pedagogy']:
+            self.pedagogy = self.options['pedagogy']
         self.set_options(self.options)
         self.send_options()
         for question in self.options['ANSWERS']:

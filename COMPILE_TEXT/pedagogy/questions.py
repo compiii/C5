@@ -53,4 +53,5 @@ PEDAGOGY = Exercise('exercise.structure', 'Exercice structuré', children=[
     QuestionNode('question.conclusion', QConclusion(), 'Conclusion', points=3),
 ])
 
-Session(PEDAGOGY)
+if GENERATING_QUESTIONS_JSON:
+    Session(PEDAGOGY)

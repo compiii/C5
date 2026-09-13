@@ -20,6 +20,7 @@ LOAD_GRADING = load
 question_classes = []
 question_instances = []
 pedagogy_metadata = None
+GENERATING_QUESTIONS_JSON = True
 
 class Session(Session): # pylint: disable=too-few-public-methods
     """Create a session with all the questions"""

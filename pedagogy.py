@@ -1,6 +1,18 @@
 """Recursive pedagogical structure with a legacy flat-question projection."""
 
 PEDAGOGY_ID_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-'
+# The CPython metadata pass overrides this flag. Browser question files must let
+# py2js create the ordinary flat Session; the server-provided options then attach
+# the richer tree to that worker.
+GENERATING_QUESTIONS_JSON = False
+
+
+def pedagogy_append(items, item):
+    """Append in CPython and in generated JavaScript nested scopes."""
+    try:
+        items.push(item)
+    except AttributeError:
+        items.append(item)
 
 
 def validate_pedagogical_id(node_id):
@@ -91,16 +103,16 @@ def flatten_pedagogy(value):
             node.question.pedagogical_id = node.node_id
             node.question.pedagogical_title = node.title
             node.question.pedagogical_points = node.points
-            questions.append(node.question)
+            pedagogy_append(questions, node.question)
         children = []
         total = node.points
         for child in node.children:
             if not isinstance(child, PedagogicalNode):
                 raise ValueError('Pedagogical children must be nodes')
             child_ancestors = ancestors[:]
-            child_ancestors.append(node)
+            pedagogy_append(child_ancestors, node)
             child_metadata = visit(child, child_ancestors)
-            children.append(child_metadata)
+            pedagogy_append(children, child_metadata)
             total += child_metadata['total_points']
         return {
             'id': node.node_id,
@@ -117,7 +129,7 @@ def flatten_pedagogy(value):
         for root in roots:
             if not isinstance(root, PedagogicalNode):
                 raise ValueError('Cannot mix raw questions and pedagogical nodes')
-            metadata_roots.append(visit(root, []))
+            pedagogy_append(metadata_roots, visit(root, []))
     else:
         for question in roots:
             index = len(questions)
@@ -125,8 +137,8 @@ def flatten_pedagogy(value):
             question.pedagogical_id = node_id
             question.pedagogical_title = question.__doc__ or ''
             question.pedagogical_points = 0
-            questions.append(question)
-            metadata_roots.append({
+            pedagogy_append(questions, question)
+            pedagogy_append(metadata_roots, {
                 'id': node_id,
                 'kind': 'question',
                 'title': question.__doc__ or '',
@@ -141,7 +153,7 @@ def flatten_pedagogy(value):
     for root in metadata_roots:
         total += root['total_points']
     for question in questions:
-        flat_ids.append(question.pedagogical_id)
+        pedagogy_append(flat_ids, question.pedagogical_id)
     return questions, {
         'schema': 1,
         'explicit': explicit,
