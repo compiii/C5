@@ -86,7 +86,9 @@ def flatten_pedagogy(value):
         for child in node.children:
             if not isinstance(child, PedagogicalNode):
                 raise ValueError('Pedagogical children must be nodes')
-            child_metadata = visit(child, ancestors + [node])
+            child_ancestors = ancestors[:]
+            child_ancestors.append(node)
+            child_metadata = visit(child, child_ancestors)
             children.append(child_metadata)
             total += child_metadata['total_points']
         return {
