@@ -44,14 +44,17 @@ class QConclusion(Question):
         return ''
 
 
-PEDAGOGY = Exercise('exercise.structure', 'Exercice structuré', children=[
-    Section('section.analysis', 'Analyse', children=[
-        QuestionNode('question.context', QContext(), 'Contexte', points=2, children=[
-            QuestionNode('question.detail', QDetail(), 'Détail', points=1),
+def build_pedagogy():
+    """Build metadata only during the trusted CPython generation pass."""
+    return Exercise('exercise.structure', 'Exercice structuré', [
+        Section('section.analysis', 'Analyse', [
+            QuestionNode('question.context', QContext(), 'Contexte', [
+                QuestionNode('question.detail', QDetail(), 'Détail', None, 1),
+            ], 2),
         ]),
-    ]),
-    QuestionNode('question.conclusion', QConclusion(), 'Conclusion', points=3),
-])
+        QuestionNode('question.conclusion', QConclusion(), 'Conclusion', None, 3),
+    ])
+
 
 if GENERATING_QUESTIONS_JSON:
-    Session(PEDAGOGY)
+    Session(build_pedagogy())
