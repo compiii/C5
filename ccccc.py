@@ -2623,7 +2623,26 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         else:
             self.question.innerHTML = ''.join(content)
         if GRADING:
+            content.append('<button id="deferred_grade" '
+                + 'onclick="ccccc.request_deferred_grade(event)">'
+                + 'Correction automatique</button>')
+            content.append('<pre id="deferred_grade_result"></pre>')
             update_feedback(WHERE[10])
+
+    def request_deferred_grade(self, event):
+        """Ask the worker to grade only the current answer, on explicit command."""
+        stop_event(event)
+        if not self.grading_allowed():
+            return
+        self.update_source()
+        self.worker.postMessage(['deferred_grade', self.current_question, self.source])
+
+    def deferred_grade_recorded(self, history):
+        """Display the separately persisted automatic history."""
+        self.deferred_grading_history = history
+        target = document.getElementById('deferred_grade_result')
+        if target:
+            target.textContent = history
 
     def grade(self, event):
         """Set the grade"""
@@ -2963,6 +2982,21 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             self.expected_answer[value[0]] = value[1]
         elif what == 'grading_ladder':
             self.grading_ladder[value[0]] = value[1]
+        elif what == 'deferred_grade_result':
+            question, result = value
+            target = document.getElementById('deferred_grade_result')
+            if result is None:
+                if target:
+                    target.textContent = 'Aucun correcteur automatique pour cette question.'
+            else:
+                pedagogy = self.options['pedagogy']
+                question_id = (pedagogy and pedagogy['explicit']
+                    and pedagogy['flat_ids'][question] or 'legacy-question-' + (question + 1))
+                do_post_data({
+                    'student': STUDENT,
+                    'question_id': question_id,
+                    'result': JSON.stringify(result),
+                }, 'record_deferred_grade/' + COURSE + '?ticket=' + TICKET)
         elif what in ('tester', 'compiler', 'question', 'time'):
             if not value:
                 return

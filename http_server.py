@@ -223,6 +223,7 @@ async def editor(session:Session, is_admin:bool, course:CourseConfig, # pylint: 
             SERVER_TIME = {time.time()};
             GRADE = {json.dumps(the_grade)};
             GRADES = {json.dumps(grades)};
+            DEFERRED_GRADES = {json.dumps(course.get_deferred_grades(login) if grading else '')};
             COURSE_CONFIG = {json.dumps(course.get_config())};
             COURSE_CONFIG['feedback'] = {feedback};
             COMMENT_STRING = {json.dumps(course.get_language()[1])};
@@ -344,6 +345,24 @@ async def record_grade(request:Request) -> Response:
     else:
         grades = course.get_grades(login)
     return answer(f"window.parent.ccccc.update_grading({json.dumps(grades)})")
+
+async def record_deferred_grade(request:Request) -> Response:
+    """Persist one explicitly requested automatic result without changing grades."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    if course.state != 'Grade':
+        raise web.HTTPConflict(text='Deferred grading is available only in Grade mode')
+    post = await request.post()
+    login = str(post['student'])
+    if not os.path.isdir(f'{course.dir_log}/{login}'):
+        raise web.HTTPNotFound(text='Student work not found')
+    result = json.loads(str(post['result']))
+    question_id = str(post['question_id'])
+    entry = [int(time.time()), session.login, question_id, result]
+    history = course.append_deferred_grade(login, entry)
+    return answer('window.parent.ccccc.deferred_grade_recorded('
+                  + json.dumps(history) + ')')
 
 async def load_student_infos() -> None:
     """Load all student info in order to answer quickly"""
@@ -2750,6 +2769,7 @@ def main():
                     web.post('/upload_course/{compiler}/{course}', upload_course),
                     web.post('/upload_media/{compiler}/{course}', upload_media),
                     web.post('/record_grade/{course}', record_grade),
+                    web.post('/record_deferred_grade/{course}', record_deferred_grade),
                     web.post('/adm/c5/{action}', adm_c5),
                     web.post('/adm/building/{building}', adm_building_store),
                     web.post('/adm/session/{course}/{action}', adm_config),

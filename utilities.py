@@ -691,6 +691,18 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         self.set_active_teacher_room(login, 'grade', new_value)
         return grades
 
+    def get_deferred_grades(self, login:str) -> str:
+        """Return the append-only automatic grading history."""
+        path = pathlib.Path(self.dir_log) / login / 'automatic-grades.log'
+        return path.read_text(encoding='utf-8') if path.exists() else ''
+
+    def append_deferred_grade(self, login:str, result:List) -> str:
+        """Record automation separately from authoritative manual grades."""
+        path = pathlib.Path(self.dir_log) / login / 'automatic-grades.log'
+        with path.open('a', encoding='utf-8') as file:
+            file.write(json.dumps(result, ensure_ascii=False) + '\n')
+        return self.get_deferred_grades(login)
+
     def running(self, login:str, hostname:str=None) -> bool:
         """If the session running for the user"""
         return self.status(login, hostname).startswith('running') or not CONFIG.is_student(login) or self.is_grader(login)

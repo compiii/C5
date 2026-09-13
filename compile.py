@@ -40,6 +40,11 @@ def onmessage(event):
         elif event.data[0] == 'pedagogy_state':
             Compile.worker.pedagogy_states[event.data[1]] = event.data[2]
             Compile.worker.post('index', Compile.worker.index_initial_content())
+        elif event.data[0] == 'deferred_grade':
+            question = event.data[1]
+            source = event.data[2]
+            result = Compile.worker.questions[question].deferred_grading(source)
+            Compile.worker.post('deferred_grade_result', [question, result])
 
     else:
         if Compile.worker.shared_buffer:

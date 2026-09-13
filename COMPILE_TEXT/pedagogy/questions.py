@@ -32,6 +32,9 @@ class QContext(Question):
     def default_answer(self):
         return ''
 
+    def deferred_grading(self, source):
+        return {'fraction': int(source.strip() == 'Titre'), 'expected': 'Titre'}
+
 
 class QDetail(Question):
     """Sous-question"""
@@ -41,6 +44,9 @@ class QDetail(Question):
     def default_answer(self):
         return ''
 
+    def deferred_grading(self, source):
+        return {'fraction': int(source.strip() == 'Explication'), 'expected': 'Explication'}
+
 
 class QConclusion(Question):
     """Conclusion"""
@@ -49,6 +55,9 @@ class QConclusion(Question):
 
     def default_answer(self):
         return ''
+
+    def deferred_grading(self, source):
+        return {'fraction': int(source.strip() == 'Conclusion'), 'expected': 'Conclusion'}
 
 
 def build_pedagogy():

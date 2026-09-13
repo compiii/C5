@@ -176,6 +176,14 @@ class Question:
     def grading_ladder(self):
         """For grader and may be student"""
         return ''
+    def deferred_grading(self, _source): # pylint: disable=no-self-use
+        """Return an automatic grading result, or None when not supported.
+
+        This hook is called only on an explicit grader command in Grade mode.
+        Implementations return a JSON-compatible mapping and must not mutate
+        the answer or the manual grading history.
+        """
+        return None
     def append_to_source_code(self): # pylint: disable=no-self-use
         """Add this to the user source code"""
         return ""
