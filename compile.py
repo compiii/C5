@@ -510,7 +510,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
             .pedagogy_answer.current { background:#FFB }
             .pedagogy_answer.good { background:#DFD }
             .pedagogy_answer.locked { color:#888 }
-            .pedagogy_node.progress_visited .pedagogy_label:before { content:'○ '; color:#777 }
+            .pedagogy_node.progress_visited { box-shadow:inset 0.25em 0 #5686C2 }
+            .pedagogy_node.progress_visited .pedagogy_label:before { content:'◌ '; color:#2864A8 }
             .pedagogy_node.progress_started .pedagogy_label:before { content:'◐ '; color:#B70 }
             .pedagogy_node.progress_saved .pedagogy_label:before { content:'● '; color:#078 }
             .pedagogy_node.progress_completed .pedagogy_label:before { content:'✓ '; color:#080 }

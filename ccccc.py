@@ -3115,6 +3115,11 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         old = JOURNAL.pedagogy_states[node_id] or 'unvisited'
         if not allow_downgrade and ranks[state] <= ranks[old]:
             return
+        # Update the browser state synchronously. SHARED_WORKER.post also
+        # appends the event locally, but keeping this assignment explicit
+        # prevents a worker refresh from briefly restoring stale metadata.
+        JOURNAL.pedagogy_states[node_id] = state
+        self.options['PEDAGOGY_STATES'] = JOURNAL.pedagogy_states
         SHARED_WORKER.pedagogy_state(node_id, state)
         self.worker.postMessage(['pedagogy_state', node_id, state])
 

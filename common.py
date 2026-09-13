@@ -567,8 +567,15 @@ class Journal:
 
     def action_E(self, value, _start):
         """Persist a pedagogical state by stable node identifier."""
-        state, node_id = value.split(' ', 1)
-        if state in ('visited', 'started', 'saved', 'completed'):
+        # Do not use ``split(' ', 1)`` here: RapydScript translates the
+        # Python maxsplit argument to JavaScript's result-limit argument.
+        # The browser would consequently discard the stable identifier.
+        parts = value.split(' ')
+        state = parts[0]
+        node_id = ''
+        if len(parts) == 2:
+            node_id = parts[1]
+        if node_id and state in ('visited', 'started', 'saved', 'completed'):
             self.pedagogy_states[node_id] = state
 
     def evaluate_fast(self, lines):
