@@ -5,6 +5,7 @@ PY=$1.py
 JS=$1.js
 JSON=$1.json
 TMP_SOURCE=$(mktemp "${TMPDIR:-/tmp}/c5-py2js.XXXXXX") || exit 1
+C5_SOURCE_DIR=$(dirname "$(readlink -f "$0")") || exit 1
 
 cleanup() {
     rm -f "$TMP_SOURCE"
@@ -48,9 +49,9 @@ case $1 in
 		[ -d $1 ] && chmod 700 $1
         BEFORE="importScripts('JS/$COMPILER.js' + location.search)"
 		;;
-    compile_*)
+	compile_*)
 		COMPILER=
-		FILES="compatibility.py xxx_local.py options.py compile.py pedagogy.py question.py $PY"
+		FILES="$C5_SOURCE_DIR/compatibility.py $C5_SOURCE_DIR/xxx_local.py $C5_SOURCE_DIR/options.py $C5_SOURCE_DIR/compile.py $C5_SOURCE_DIR/pedagogy.py $C5_SOURCE_DIR/question.py $PY"
 		JS=JS/$JS
 		;;
     bare_*)
@@ -60,7 +61,7 @@ case $1 in
 		;;
 	*)
 		COMPILER=
-		FILES="compatibility.py xxx_local.py options.py $PY"
+		FILES="$C5_SOURCE_DIR/compatibility.py $C5_SOURCE_DIR/xxx_local.py $C5_SOURCE_DIR/options.py $PY"
 		JS=JS/$JS
 		;;
 esac
@@ -76,12 +77,12 @@ fi
 
 echo "$SESSION" >>"$TMP_SOURCE"
 
-if nodejs RapydScript/bin/rapydscript --prettify --bare "$TMP_SOURCE" >$JS
+if nodejs "$C5_SOURCE_DIR/RapydScript/bin/rapydscript" --prettify --bare "$TMP_SOURCE" >$JS
 then
     echo "$PY → $JS OK"
     if [ "$COMPILER" != "" ]
         then
-        ./rewrite.py $JS
+        "$C5_SOURCE_DIR/rewrite.py" $JS
         fi
 else
     echo "$PY → $JS FAIL"
@@ -91,7 +92,10 @@ fi
 
 if [ "$COMPILER" != "" ]
 then
-	if cat options.py compile.py $COMPILER.py pedagogy.py question_before.py $PY question_after.py |
+	if cat "$C5_SOURCE_DIR/options.py" "$C5_SOURCE_DIR/compile.py" \
+		"$C5_SOURCE_DIR/$COMPILER.py" "$C5_SOURCE_DIR/pedagogy.py" \
+		"$C5_SOURCE_DIR/question_before.py" "$PY" \
+		"$C5_SOURCE_DIR/question_after.py" |
 		(cd $(dirname $JS) ; python3) >$JSON
     then
         echo "$PY → $JSON OK"
