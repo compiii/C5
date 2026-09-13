@@ -3105,7 +3105,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 the_round = 0
             self.worker.postMessage(['goto', index, the_round])
 
-    def set_pedagogy_state(self, state):
+    def set_pedagogy_state(self, state, allow_downgrade=False):
         """Advance the current explicit question state without downgrading it."""
         pedagogy = self.options['pedagogy']
         if not pedagogy or not pedagogy['explicit']:
@@ -3113,10 +3113,44 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         node_id = pedagogy['flat_ids'][self.current_question]
         ranks = {'unvisited': 0, 'visited': 1, 'started': 2, 'saved': 3, 'completed': 4}
         old = JOURNAL.pedagogy_states[node_id] or 'unvisited'
-        if ranks[state] <= ranks[old]:
+        if not allow_downgrade and ranks[state] <= ranks[old]:
             return
         SHARED_WORKER.pedagogy_state(node_id, state)
         self.worker.postMessage(['pedagogy_state', node_id, state])
+
+    def pedagogy_previous(self):
+        """Navigate to the previous answerable node."""
+        if self.current_question > 0:
+            self.goto_question(self.current_question - 1)
+
+    def pedagogy_next(self):
+        """Navigate to the next answerable node when session rules allow it."""
+        index = self.current_question + 1
+        pedagogy = self.options['pedagogy']
+        if not pedagogy or index >= len(pedagogy['flat_ids']):
+            return
+        if self.options['sequential'] and not JOURNAL.questions[index]:
+            self.popup_message("La question suivante est encore verrouillée.")
+            return
+        self.goto_question(index)
+
+    def pedagogy_complete(self):
+        """Mark completion without running validation or creating a named save."""
+        if not self.allow_edit:
+            return
+        self.update_source()
+        self.set_pedagogy_state('completed')
+
+    def pedagogy_reopen(self):
+        """Reopen a completed question while keeping its answer and history."""
+        if not self.allow_edit:
+            return
+        pedagogy = self.options['pedagogy']
+        if not pedagogy or not pedagogy['explicit']:
+            return
+        node_id = pedagogy['flat_ids'][self.current_question]
+        if JOURNAL.pedagogy_states[node_id] == 'completed':
+            self.set_pedagogy_state('started', allow_downgrade=True)
 
     def get_element_box(self, element):
         #if element.offsetWidth == 0:
