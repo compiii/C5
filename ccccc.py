@@ -2622,7 +2622,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'question\')">Question</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'exercise\')">Exercice</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'copy\')">Copie</button> ')
-                content.append('<a target="_blank" href="deferred_grade_session/' + COURSE
+                content.append('<a target="_blank" href="/deferred_grade_session/' + COURSE
                     + '?ticket=' + TICKET + '">Toutes les copies</a>')
                 content.append('<div>Automatique (historique séparé)</div>'
                     + '<pre id="deferred_grade_result"></pre>'
