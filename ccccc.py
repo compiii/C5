@@ -962,6 +962,8 @@ class CCCCC: # pylint: disable=too-many-public-methods
 
     def compilation_toggle(self, element):
         """Toggle the automatic compilation flag"""
+        if not self.can_edit_current_question():
+            return
         if self.options['automatic_compilation']:
             # The False value is for course deactivated automatic compilation
             self.options['automatic_compilation'] = None
@@ -973,6 +975,8 @@ class CCCCC: # pylint: disable=too-many-public-methods
     def compilation_run(self, memorize_input=True):
         """Run one compilation"""
         trace('CCCCC: compilation_run', self.compile_now, self.init_done, not self.question.firstChild)
+        if not self.can_edit_current_question():
+            return
         if not self.question.firstChild:
             return
         if memorize_input:
@@ -1082,6 +1086,8 @@ class CCCCC: # pylint: disable=too-many-public-methods
               * [True, position, text]    For insertion
               * [False, position, number] For deletion
         """
+        if not self.can_edit_current_question():
+            return
         if JOURNAL.remote_update:
             # SHARED_WORKER.debug("Diff not done because remote update")
             return
@@ -2013,6 +2019,11 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         trace('CCCCC: onkeydown', self.allow_edit, self.compositing, self.compile_now, event)
         if self.compositing:
             return
+        if not self.can_edit_current_question():
+            if (event.metaKey or event.ctrlKey) and event.key in ('c', 'C'):
+                return
+            stop_event(event)
+            return
         if not self.allow_edit or event.key == 'F12' or event.key == 'F11' and not GRADING and self.options['checkpoint']:
             stop_event(event)
             return
@@ -2302,7 +2313,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         """Insert composed characters"""
         if self.compositing:
             return
-        if self.journal_question.form and event.data and self.allow_edit and not self.completion_running :
+        if (self.journal_question.form and event.data
+                and self.can_edit_current_question() and not self.completion_running):
             self.source = insert_text(self.source, self.cursor_position, event.data,
                 bind(self.can_put, self))
             self.set_editor_content(self.source, self.cursor_position+1, move_on_screen=False)
@@ -2312,7 +2324,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         """Key up"""
         if self.compositing:
             return
-        if not self.allow_edit:
+        if not self.can_edit_current_question():
             stop_event(event)
             return
         self.current_key = ''
@@ -2348,6 +2360,9 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             self.inputs[self.current_question][value.input_index] = value.value
     def oninput(self, event):
         """Send the input to the worker"""
+        if not self.can_edit_current_question():
+            stop_event(event)
+            return
         if event.key == 'Enter':
             self.focus_on_next_input = True
             if self.options['forget_input']:
@@ -2429,7 +2444,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
 
     def save(self):
         """Saving the last question allowed question open the next one"""
-        if self.allow_edit:
+        if self.can_edit_current_question():
             self.update_source()
             def do_tag(tag):
                 for old_tag, _index in self.journal_question.tags:
@@ -2683,6 +2698,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             if not self.journal_question:
                 return
             self.set_pedagogy_state('visited')
+            self.apply_pedagogy_access()
             if self.journal_question.start + 1 == self.journal_question.head:
                 if not REAL_GRADING: # If not default answer: do set one
                     # Initialize with the default answer
@@ -2930,6 +2946,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             content.append(value)
             if what in self: # pylint: disable=unsupported-membership-test
                 self[what].innerHTML = ''.join(content) # pylint: disable=unsubscriptable-object
+            self.apply_pedagogy_access()
             self.timer_day = document.getElementById('timer_day')
             self.timer_hour = document.getElementById('timer_hour')
             self.timer_min = document.getElementById('timer_min')
@@ -3009,6 +3026,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 + "</ul>")
         elif what == 'allow_edit':
             self.allow_edit = int(value)
+            self.apply_pedagogy_access()
         elif what == 'recompile':
             self.compilation_run()
 
@@ -3123,6 +3141,35 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         SHARED_WORKER.pedagogy_state(node_id, state)
         self.worker.postMessage(['pedagogy_state', node_id, state])
 
+    def pedagogy_question_completed(self):
+        """Return whether the current explicit question has been completed."""
+        pedagogy = self.options['pedagogy']
+        if not pedagogy or not pedagogy['explicit']:
+            return False
+        if self.current_question >= len(pedagogy['flat_ids']):
+            return False
+        node_id = pedagogy['flat_ids'][self.current_question]
+        return JOURNAL.pedagogy_states[node_id] == 'completed'
+
+    def can_edit_current_question(self):
+        """Keep navigation/copy available while completed work is read-only."""
+        return self.allow_edit and not self.pedagogy_question_completed()
+
+    def apply_pedagogy_access(self):
+        """Synchronize editor and progression buttons with completion state."""
+        if not self.editor:
+            return
+        completed = self.pedagogy_question_completed()
+        editable = self.allow_edit and not completed
+        self.editor.setAttribute('contenteditable', editable and 'true' or 'false')
+        self.editor.setAttribute('aria-readonly', editable and 'false' or 'true')
+        complete = document.getElementById('pedagogy_complete')
+        reopen = document.getElementById('pedagogy_reopen')
+        if complete:
+            complete.disabled = not editable
+        if reopen:
+            reopen.disabled = not self.allow_edit or not completed
+
     def pedagogy_previous(self):
         """Navigate to the previous answerable node."""
         if self.current_question > 0:
@@ -3145,6 +3192,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             return
         self.update_source()
         self.set_pedagogy_state('completed')
+        self.compile_now = False
+        self.apply_pedagogy_access()
 
     def pedagogy_reopen(self):
         """Reopen a completed question while keeping its answer and history."""
@@ -3156,6 +3205,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         node_id = pedagogy['flat_ids'][self.current_question]
         if JOURNAL.pedagogy_states[node_id] == 'completed':
             self.set_pedagogy_state('started', allow_downgrade=True)
+            self.apply_pedagogy_access()
+            self.editor.focus()
 
     def get_element_box(self, element):
         #if element.offsetWidth == 0:

@@ -524,8 +524,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
             <div class="pedagogy_controls">
               <button onclick="ccccc.pedagogy_previous()" title="Question précédente">←</button>
               <button onclick="ccccc.pedagogy_next()" title="Question suivante">→</button>
-              <button onclick="ccccc.pedagogy_complete()">Terminer</button>
-              <button onclick="ccccc.pedagogy_reopen()">Rouvrir</button>
+              <button id="pedagogy_complete" onclick="ccccc.pedagogy_complete()">Terminer</button>
+              <button id="pedagogy_reopen" onclick="ccccc.pedagogy_reopen()">Rouvrir</button>
             </div>
         """]
         for root in self.pedagogy['roots']:
