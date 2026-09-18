@@ -504,6 +504,11 @@ async def adm_course(request:Request) -> Response:
                 files.append(filename)
         try:
             student['status'] = course.status(user)
+            automatic_grades = f'{course.dir_log}/{user}/automatic-grades.log'
+            student['automatic_grading'] = (
+                os.path.exists(automatic_grades)
+                and os.path.getsize(automatic_grades) > 0
+            )
             with open(f'{course.dir_log}/{user}/journal.log', encoding='utf-8') as file:
                 student['journal'] = file.read()
 
