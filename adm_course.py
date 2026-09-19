@@ -219,12 +219,11 @@ DIV[onclick]:hover { background: #EEE }
             text.append('">')
             text.append(filename)
             text.append('</a>')
+    text.append('<tr><td><tt>login value</tt>\nStatus=Any<td rowspan="3">')
     if CORRECTION_VIEW:
-        text.append('</tbody></table>')
-        document.getElementById('top').innerHTML = text.join('')
-        return
-    text.append('''<tr><td><tt>login value</tt>\nStatus=Any<td rowspan="3"
-><div style="vertical-align:top;font-size:80%">All sources codes:<br>
+        text.append('<div></div>')
+    else:
+        text.append('''<div style="vertical-align:top;font-size:80%">All sources codes:<br>
 <button onclick="window.open(BASE + '/adm/answers/' + COURSE + '/*/' + COURSE + '.zip')"
  style="background: #EEE">Sources<br>txt ZIP</button></div>''')
 
@@ -244,6 +243,10 @@ DIV[onclick]:hover { background: #EEE }
                     + what + '\001feedback' + '\')">📥</button>')
     text.append('</tr>')
     text.append('</tbody></table>')
+
+    if CORRECTION_VIEW:
+        document.getElementById('top').innerHTML = text.join('')
+        return
 
     ###########################################################################
     ###########################################################################

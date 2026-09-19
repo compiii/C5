@@ -348,8 +348,7 @@ async def record_grade(request:Request) -> Response:
         course.doing_grading[session.login] = time.time()
     else:
         grades = course.get_grades(login)
-    return answer(f"window.parent.ccccc.update_grading({json.dumps(grades)});"
-                  "window.parent.update_feedback(1)")
+    return answer(f"ccccc.update_grading({json.dumps(grades)});update_feedback(1)")
 
 async def record_deferred_grade(request:Request) -> Response:
     """Persist one explicitly requested automatic result without changing grades."""
@@ -546,14 +545,28 @@ async def pedagogy_copies_export(request:Request) -> Response:
     manifest_writer = csv.writer(manifest)
     manifest_writer.writerow(['Login', 'Question', 'Identifiant', 'État',
                               'Dernière version', 'Fichier'])
+
+    def node_path(node, question_id, parents):
+        path = parents + ([str(node.get('title', ''))] if node.get('title') else [])
+        if node.get('id') == question_id:
+            return path
+        for child in node.get('children', []):
+            found = node_path(child, question_id, path)
+            if found:
+                return found
+        return None
+
+    def safe_name(value):
+        return re.sub(r'[/\\:*?"<>|]+', '_', value).strip(' .') or 'Question'
+
     with zipfile.ZipFile(data, mode='w', compression=zipfile.ZIP_DEFLATED) as zipper:
         if os.path.isdir(course.dir_log):
             for login in sorted(os.listdir(course.dir_log)):
                 if not utilities.CONFIG.is_student(login):
                     continue
-                answers, _blurs = get_answers(course.dir_log, login, compiled=True)
                 journal_path = pathlib.Path(course.dir_log) / login / 'journal.log'
                 pedagogy_states = {}
+                journal = None
                 if journal_path.exists():
                     try:
                         journal = common.Journal(journal_path.read_text(encoding='utf-8'))
@@ -561,20 +574,32 @@ async def pedagogy_copies_export(request:Request) -> Response:
                     except (KeyError, TypeError, ValueError):
                         pedagogy_states = {}
                 flat_ids = (course.pedagogy or {}).get('flat_ids', [])
+                roots = (course.pedagogy or {}).get('roots', [])
                 for question in range(len(course.questions)):
                     question_id = (flat_ids[question] if question < len(flat_ids)
                                    else f'legacy-question-{question + 1}')
-                    responses = answers.get(question, [])
-                    latest = max(responses, key=lambda value: value[2]) if responses else None
-                    source = latest[0] if latest else ''
-                    timestamp = latest[2] if latest else 0
+                    question_stats = (journal.questions.get(question)
+                                      if journal and question in journal.questions else None)
+                    source = question_stats.source if question_stats else ''
+                    timestamp = 0
+                    if (question_stats and question_stats.head
+                            and question_stats.head <= len(journal.timestamps)):
+                        timestamp = int(journal.timestamps[question_stats.head - 1])
                     state = pedagogy_states.get(question_id, '')
                     if not state:
-                        state = 'saved' if latest else 'not_saved'
+                        state = 'not_saved'
                     state_label = state_labels.get(state, 'Pas enregistrée')
-                    question_name = course.get_question_name(question)
+                    path = None
+                    for root in roots:
+                        path = node_path(root, question_id, [])
+                        if path:
+                            break
+                    if not path:
+                        path = [course.questions[question].get('title', 'Question')]
+                    question_name = ' › '.join(path)
+                    file_stem = ' - '.join(safe_name(part) for part in path)
                     extension, comment = course.get_language()[:2]
-                    filename = f'copies/{login}/{question_name}.{extension}'
+                    filename = f'copies/{login}/{file_stem}.{extension}'
                     version = (time.strftime('%Y-%m-%d %H:%M:%S',
                                              time.localtime(timestamp))
                                if timestamp else 'Aucune')
