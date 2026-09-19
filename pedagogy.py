@@ -75,8 +75,11 @@ class Resource:
 
 def implicit_source_resource():
     """Compatibility resource backed by default_answer/last_answer/source."""
-    return Resource('source', path='source', name='Source', content=None,
-                    primary=True)
+    # RapydScript 7dfd106 cannot generate keyword arguments on a constructor
+    # call (``new Resource(..., path=...)``). Keep this browser-compiled call
+    # positional even though CPython accepts the clearer keyword form.
+    return Resource('source', 'source', 'Source', 'text', '', None, True,
+                    False, False, True, True, 'question', None, True)
 
 
 def resource_metadata(resource):

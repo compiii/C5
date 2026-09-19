@@ -74,16 +74,20 @@ def build_pedagogy():
     return Exercise('exercise.structure', 'Exercice structuré', [
         Section('section.analysis', 'Analyse', [
             QuestionNode('question.context', QContext(), 'Contexte', [
+                # Browser-compiled constructors must use positional arguments:
+                # the pinned RapydScript crashes on constructor keywords.
                 QuestionNode('question.detail', QDetail(), 'Détail', None, 1,
-                    resources=[
-                        Resource('source', name='Réponse', language='text',
-                                 primary=True),
-                        Resource('notes', path='notes.txt', name='Notes de travail',
-                                 content='Notes facultatives\n', required=False,
-                                 submitted=False),
-                        Resource('consigne', path='consigne.txt', name='Consigne',
-                                 content='Expliquez le titre en une phrase.\n',
-                                 editable=False, required=False, submitted=False),
+                    False, [
+                        Resource('source', None, 'Réponse', 'text', 'text',
+                                 None, True, False, False, True, True,
+                                 'question', None, True),
+                        Resource('notes', 'notes.txt', 'Notes de travail', 'text',
+                                 '', 'Notes facultatives\n', True, False, False,
+                                 False, False, 'question', None, False),
+                        Resource('consigne', 'consigne.txt', 'Consigne', 'text',
+                                 '', 'Expliquez le titre en une phrase.\n', False,
+                                 False, False, False, False, 'question', None,
+                                 False),
                     ]),
             ], 2),
         ]),
