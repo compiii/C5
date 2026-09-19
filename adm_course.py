@@ -47,9 +47,9 @@ def display(): # pylint: disable=too-many-locals,too-many-branches,too-many-stat
         text.append('<h2>Correction</h2><p><a href="/adm/correction_export/'
                     + COURSE + '?ticket=' + TICKET
                     + '">Exporter les notes des étudiants (CSV)</a></p>'
-                    + '<p><a href="/adm/answers/' + COURSE + '/'
-                    + students.join(',') + '/' + COURSE + '.zip?ticket=' + TICKET
-                    + '">Exporter les fichiers sources des étudiants (ZIP)</a></p>'
+                    + '<p><a href="/adm/pedagogy_copies_export/' + COURSE
+                    + '?ticket=' + TICKET
+                    + '">Exporter toutes les copies et questions (ZIP)</a></p>'
                     + '<p><a target="_blank" href="/deferred_grade_session/'
                     + COURSE + '?ticket=' + TICKET
                     + '">Lancer la correction automatique de toutes les copies</a></p>')
@@ -219,6 +219,10 @@ DIV[onclick]:hover { background: #EEE }
             text.append('">')
             text.append(filename)
             text.append('</a>')
+    if CORRECTION_VIEW:
+        text.append('</tbody></table>')
+        document.getElementById('top').innerHTML = text.join('')
+        return
     text.append('''<tr><td><tt>login value</tt>\nStatus=Any<td rowspan="3"
 ><div style="vertical-align:top;font-size:80%">All sources codes:<br>
 <button onclick="window.open(BASE + '/adm/answers/' + COURSE + '/*/' + COURSE + '.zip')"
@@ -240,10 +244,6 @@ DIV[onclick]:hover { background: #EEE }
                     + what + '\001feedback' + '\')">📥</button>')
     text.append('</tr>')
     text.append('</tbody></table>')
-
-    if CORRECTION_VIEW:
-        document.getElementById('top').innerHTML = text.join('')
-        return
 
     ###########################################################################
     ###########################################################################

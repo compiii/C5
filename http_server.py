@@ -530,6 +530,73 @@ async def correction_export(request:Request) -> Response:
         'attachment; filename="' + course.course.replace('=', '-') + '-notes.csv"')
     return response
 
+async def pedagogy_copies_export(request:Request) -> Response:
+    """Export one latest-answer file for every question of every student."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    state_labels = {
+        'visited': 'Visitée',
+        'started': 'Commencée',
+        'saved': 'Enregistrée',
+        'completed': 'Terminée',
+    }
+    data = io.BytesIO()
+    manifest = io.StringIO()
+    manifest_writer = csv.writer(manifest)
+    manifest_writer.writerow(['Login', 'Question', 'Identifiant', 'État',
+                              'Dernière version', 'Fichier'])
+    with zipfile.ZipFile(data, mode='w', compression=zipfile.ZIP_DEFLATED) as zipper:
+        if os.path.isdir(course.dir_log):
+            for login in sorted(os.listdir(course.dir_log)):
+                if not utilities.CONFIG.is_student(login):
+                    continue
+                answers, _blurs = get_answers(course.dir_log, login, compiled=True)
+                journal_path = pathlib.Path(course.dir_log) / login / 'journal.log'
+                pedagogy_states = {}
+                if journal_path.exists():
+                    try:
+                        journal = common.Journal(journal_path.read_text(encoding='utf-8'))
+                        pedagogy_states = journal.pedagogy_states
+                    except (KeyError, TypeError, ValueError):
+                        pedagogy_states = {}
+                flat_ids = (course.pedagogy or {}).get('flat_ids', [])
+                for question in range(len(course.questions)):
+                    question_id = (flat_ids[question] if question < len(flat_ids)
+                                   else f'legacy-question-{question + 1}')
+                    responses = answers.get(question, [])
+                    latest = max(responses, key=lambda value: value[2]) if responses else None
+                    source = latest[0] if latest else ''
+                    timestamp = latest[2] if latest else 0
+                    state = pedagogy_states.get(question_id, '')
+                    if not state:
+                        state = 'saved' if latest else 'not_saved'
+                    state_label = state_labels.get(state, 'Pas enregistrée')
+                    question_name = course.get_question_name(question)
+                    extension, comment = course.get_language()[:2]
+                    filename = f'copies/{login}/{question_name}.{extension}'
+                    version = (time.strftime('%Y-%m-%d %H:%M:%S',
+                                             time.localtime(timestamp))
+                               if timestamp else 'Aucune')
+                    header = (f'{comment}Étudiant : {login}\n'
+                              f'{comment}Question : {question_name}\n'
+                              f'{comment}Identifiant : {question_id}\n'
+                              f'{comment}État : {state_label}\n'
+                              f'{comment}Dernière version : {version}\n\n')
+                    zipper.writestr(filename, header + source)
+                    manifest_writer.writerow([login, question_name, question_id,
+                                              state_label, version, filename])
+        zipper.writestr('manifest.csv', '\ufeff' + manifest.getvalue())
+        zipper.writestr('README.txt',
+            'Chaque dossier correspond à un étudiant.\n'
+            'Chaque question apparaît exactement une fois avec sa dernière réponse.\n'
+            'Une question jamais enregistrée reste présente avec l’état '
+            '« Pas enregistrée ».\nLe fichier manifest.csv récapitule tout le contenu.\n')
+    response = answer(data.getvalue(), content_type='application/zip')
+    response.headers['Content-Disposition'] = (
+        'attachment; filename="' + course.course.replace('=', '-') + '-copies.zip"')
+    return response
+
 async def load_student_infos() -> None:
     """Load all student info in order to answer quickly"""
     start = time.time()
@@ -2996,6 +3063,7 @@ def main():
                     web.get('/adm/participation/{course}', adm_participation),
                     web.get('/adm/correction/{course}', adm_correction),
                     web.get('/adm/correction_export/{course}', correction_export),
+                    web.get('/adm/pedagogy_copies_export/{course}', pedagogy_copies_export),
                     web.get('/adm/history/{course}', adm_history),
                     web.get('/adm/git_pull/{course}', adm_git_pull),
                     web.get('/adm/unsaved/{course}', adm_unsaved),
