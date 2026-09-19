@@ -2620,6 +2620,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             if GRADING:
                 content.append(self.session_information)
                 content.append('<hr>')
+                content.append('<div id="pedagogy_correction_status" style="font-weight:bold;'
+                    + 'padding:.35em;border:1px solid #AAA;margin-bottom:.35em"></div>')
             if GRADING and self.options.display_global_grading:
                 content.append("Cocher les ")
                 content.append('<button onclick="ccccc.set_all_grades(0)">premières cases</button> ')
@@ -2635,7 +2637,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 content.append('</fieldset>')
                 content.append('<fieldset><legend>Notation manuelle de la question</legend>'
                     + '<div id="pedagogy_auto_current"></div>'
-                    + '<label id="pedagogy_manual_label"></label> '
+                    + '<span id="pedagogy_manual_label"></span> '
                     + '<input id="pedagogy_manual_value" type="text" inputmode="decimal" '
                     + 'pattern="[0-9]+([.,][0-9]+)?"> '
                     + '<button onclick="ccccc.record_pedagogy_grade(event)">Enregistrer</button>'
@@ -2878,7 +2880,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         preview = document.getElementById('pedagogy_answer_preview')
         if node and node['has_points']:
             field.setAttribute('max', node['points'])
-            label.textContent = 'Note sur ' + node['points'] + ' :'
+            label.textContent = 'Barème : ' + node['points'] + ' points — Note :'
         else:
             field.removeAttribute('max')
             label.textContent = 'Note libre :'
@@ -2932,6 +2934,24 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         self.pedagogy_grade_history = history
         self.render_pedagogy_grade_history()
         self.update_pedagogy_grade_summary()
+
+    def update_pedagogy_correction_status(self, feedback):
+        """Show the effective correction workflow state inside the copy."""
+        target = document.getElementById('pedagogy_correction_status')
+        if not target:
+            return
+        if feedback == 5:
+            target.textContent = 'Correction finalisée'
+            target.style.background = '#CFC'
+        elif self.pedagogy_grade_history and len(self.pedagogy_grade_history):
+            target.textContent = 'Correction manuelle en cours'
+            target.style.background = '#FFC'
+        elif self.deferred_grading_history and len(self.deferred_grading_history):
+            target.textContent = 'Correction automatique effectuée'
+            target.style.background = '#FFC'
+        else:
+            target.textContent = 'À corriger'
+            target.style.background = '#EEE'
 
     def grade(self, event):
         """Set the grade"""
@@ -4175,8 +4195,11 @@ def update_feedback(feedback):
         element.feedback = feedback
         if feedback != 5:
             element.innerHTML = "Cliquer ici pour indiquer que vous avez fini de corriger."
+            element.style.background = '#FFC'
         else:
-            element.innerHTML = "Les notes et commentaires sont peut-être affichés."
+            element.innerHTML = "Correction finalisée. Cliquer pour la rouvrir."
+            element.style.background = '#CFC'
+        ccccc.update_pedagogy_correction_status(feedback)
     else:
         element.value = feedback
 

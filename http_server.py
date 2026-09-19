@@ -344,10 +344,12 @@ async def record_grade(request:Request) -> Response:
     if 'grade' in post:
         grades = course.append_grade(
             login, [int(time.time()), session.login, post['grade'], post['value']])
+        course.set_active_teacher_room(login, 'feedback', 1)
         course.doing_grading[session.login] = time.time()
     else:
         grades = course.get_grades(login)
-    return answer(f"window.parent.ccccc.update_grading({json.dumps(grades)})")
+    return answer(f"window.parent.ccccc.update_grading({json.dumps(grades)});"
+                  "window.parent.update_feedback(1)")
 
 async def record_deferred_grade(request:Request) -> Response:
     """Persist one explicitly requested automatic result without changing grades."""
@@ -364,8 +366,9 @@ async def record_deferred_grade(request:Request) -> Response:
     question_id = str(post['question_id'])
     entry = [int(time.time()), session.login, question_id, result]
     history = course.append_deferred_grade(login, entry)
+    course.set_active_teacher_room(login, 'feedback', 1)
     return answer('ccccc.deferred_grade_recorded('
-                  + json.dumps(history) + ')')
+                  + json.dumps(history) + ');update_feedback(1)')
 
 async def record_pedagogy_grade(request:Request) -> Response:
     """Record a bounded human grade for one stable pedagogical question."""
@@ -398,8 +401,9 @@ async def record_pedagogy_grade(request:Request) -> Response:
     entry = [int(time.time()), session.login, question_id, value, maximum]
     grades = course.append_pedagogy_grade(login, entry)
     history = course.get_pedagogy_grade_entries(login)
+    course.set_active_teacher_room(login, 'feedback', 1)
     return answer('ccccc.pedagogy_grade_recorded(' + json.dumps(grades)
-                  + ',' + json.dumps(history) + ')')
+                  + ',' + json.dumps(history) + ');update_feedback(1)')
 
 async def deferred_grade_session(request:Request) -> Response:
     """Orchestrate explicit copy grading for every student in Grade mode."""
@@ -554,6 +558,7 @@ async def adm_course(request:Request, correction_view:bool=False) -> Response:
             automatic_summary = course.deferred_grade_summary(user)
             student['automatic_score'] = automatic_summary['score']
             student['automatic_graders'] = automatic_summary['graders']
+            student['pedagogy_grading'] = course.pedagogy_grade_summary(user)
             with open(f'{course.dir_log}/{user}/journal.log', encoding='utf-8') as file:
                 student['journal'] = file.read()
 
@@ -633,6 +638,9 @@ async def adm_participation(request:Request) -> Response:
                 state.hostname, state.bonus_time, state.grade, state.blur_time,
                 state.feedback, state.fullscreen, state.remarks,
             ]
+        grading = course.pedagogy_grade_summary(login)
+        details[1] = grading['graders']
+        details[6] = grading['score']
         rows.append('<tr><td>' + html.escape(login)
                     + '<td>' + html.escape(student_name)
                     + '<td>' + html.escape(label)

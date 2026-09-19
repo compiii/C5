@@ -769,6 +769,46 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
             file.write(json.dumps(grade, ensure_ascii=False) + '\n')
         return self.get_pedagogy_grades(login)
 
+    def pedagogy_grade_summary(self, login:str) -> Dict[str,Any]:
+        """Return the effective pedagogical score and every involved grader."""
+        automatic = {}
+        graders = set()
+        for entry in self.get_deferred_grade_entries(login):
+            automatic[str(entry[2])] = entry
+            graders.add(str(entry[1]))
+        manual = self.get_pedagogy_grades(login)
+        for entry in self.get_pedagogy_grade_entries(login):
+            graders.add(str(entry[1]))
+        awarded = 0.0
+        maximum = 0.0
+        scored = 0
+        for question_id in set(automatic) | set(manual):
+            if question_id in manual:
+                entry = manual[question_id]
+                awarded += float(entry[3])
+                if entry[4] is not None:
+                    maximum += float(entry[4])
+                scored += 1
+            else:
+                result = automatic[question_id][3]
+                if not isinstance(result, dict):
+                    continue
+                value = result.get('awarded')
+                points = result.get('points')
+                if isinstance(value, (int, float)):
+                    awarded += value
+                    if isinstance(points, (int, float)):
+                        maximum += points
+                    scored += 1
+        return {
+            'score': f'{awarded:.2f}',
+            'maximum': f'{maximum:g}' if maximum else '',
+            'graders': ' '.join(sorted(graders)),
+            'has_manual': bool(manual),
+            'has_automatic': bool(automatic),
+            'scored': scored,
+        }
+
     def running(self, login:str, hostname:str=None) -> bool:
         """If the session running for the user"""
         return self.status(login, hostname).startswith('running') or not CONFIG.is_student(login) or self.is_grader(login)

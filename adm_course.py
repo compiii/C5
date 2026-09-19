@@ -165,14 +165,17 @@ DIV[onclick]:hover { background: #EEE }
         graders.sort()
         journal['graders'] = ' '.join(graders)
         if CORRECTION_VIEW:
+            pedagogy_grading = student.pedagogy_grading
+            journal['grades'] = pedagogy_grading['score']
+            journal['graders'] = pedagogy_grading['graders']
             automatic_grading = student.automatic_grading or False
             if journal['feedback'] == 5:
                 journal['grading_status'] = 'Finalisée'
-            elif automatic_grading and nbr_grades:
+            elif automatic_grading and pedagogy_grading['has_manual']:
                 journal['grading_status'] = 'Automatique + manuelle'
             elif automatic_grading:
                 journal['grading_status'] = 'Automatique effectuée'
-            elif nbr_grades:
+            elif pedagogy_grading['has_manual']:
                 journal['grading_status'] = 'Manuelle en cours'
             elif student.status == 'done':
                 journal['grading_status'] = 'À corriger'
@@ -229,6 +232,10 @@ DIV[onclick]:hover { background: #EEE }
                     + what + '\001feedback' + '\')">📥</button>')
     text.append('</tr>')
     text.append('</tbody></table>')
+
+    if CORRECTION_VIEW:
+        document.getElementById('top').innerHTML = text.join('')
+        return
 
     ###########################################################################
     ###########################################################################
