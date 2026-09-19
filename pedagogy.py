@@ -104,7 +104,10 @@ def resource_metadata(resource):
 def normalize_resources(resources, implicit_source):
     """Validate resources and select their single primary editor resource."""
     if resources is None:
-        resources = [implicit_source_resource()] if implicit_source else []
+        if implicit_source:
+            resources = [implicit_source_resource()]
+        else:
+            resources = []
     identifiers = {}
     paths = {}
     primary = None
