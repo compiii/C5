@@ -1,14 +1,15 @@
-"""Demonstration of recursive exercises, sections and questions."""
+"""Demonstration of recursive pedagogy with multiple question resources."""
 
-# The source editor may execute this file without the metadata-generation
-# preamble. In that context it must remain an inert, valid questionnaire source.
+# This is deliberately a separate session from TEXT=pedagogy. Development
+# upgrades preserve existing runtime sessions, while a new session is seeded
+# with its generated schema and can therefore demonstrate new metadata safely.
 try:
     GENERATING_QUESTIONS_JSON
 except NameError:
     GENERATING_QUESTIONS_JSON = False
 
 COURSE_OPTIONS = {
-    'title': 'Démonstrateur de structure pédagogique',
+    'title': 'Démonstrateur de ressources pédagogiques',
     'state': 'Ready',
     'checkpoint': 0,
     'expected_students': 'nobody',
@@ -40,7 +41,7 @@ class QContext(Question):
 
 
 class QDetail(Question):
-    """Sous-question"""
+    """Sous-question avec plusieurs fichiers"""
     def question(self):
         return 'Expliquez le titre en une phrase.'
 
@@ -70,11 +71,24 @@ class QConclusion(Question):
 
 
 def build_pedagogy():
-    """Build metadata only during the trusted CPython generation pass."""
+    """Build a tree whose detail question owns three distinct resources."""
     return Exercise('exercise.structure', 'Exercice structuré', [
         Section('section.analysis', 'Analyse', [
             QuestionNode('question.context', QContext(), 'Contexte', [
-                QuestionNode('question.detail', QDetail(), 'Détail', None, 1),
+                # Pinned RapydScript requires positional constructor arguments.
+                QuestionNode('question.detail', QDetail(), 'Détail', None, 1,
+                    False, [
+                        Resource('source', None, 'Réponse', 'text', 'text',
+                                 None, True, False, False, True, True,
+                                 'question', None, True),
+                        Resource('notes', 'notes.txt', 'Notes de travail', 'text',
+                                 '', 'Notes facultatives\n', True, False, False,
+                                 False, False, 'question', None, False),
+                        Resource('consigne', 'consigne.txt', 'Consigne', 'text',
+                                 '', 'Expliquez le titre en une phrase.\n', False,
+                                 False, False, False, False, 'question', None,
+                                 False),
+                    ]),
             ], 2),
         ]),
         QuestionNode('question.conclusion', QConclusion(), 'Conclusion', None, 3),
