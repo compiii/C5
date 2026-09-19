@@ -2618,13 +2618,23 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 content.append('<button onclick="ccccc.set_all_grades(1)">premières cases sauf malus</button> ')
                 content.append('<button onclick="ccccc.set_all_grades(-1)">dernières cases</button>')
             if GRADING:
-                content.append('<fieldset><legend>Correction différée</legend>')
+                content.append('<fieldset><legend>Correction automatique</legend>')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'question\')">Question</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'exercise\')">Exercice</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'copy\')">Copie</button> ')
-                content.append('<div>Propositions automatiques (historique séparé)</div>'
-                    + '<div id="deferred_grade_result"></div>'
-                    + '<div>Manuel / final : barème ci-dessous</div></fieldset>')
+                content.append('<div id="pedagogy_grade_summary"></div></fieldset>')
+                content.append('<fieldset><legend>Notation manuelle de la question</legend>'
+                    + '<label id="pedagogy_manual_label"></label> '
+                    + '<input id="pedagogy_manual_value" type="number" min="0" step="any"> '
+                    + '<button onclick="ccccc.record_pedagogy_grade(event)">Enregistrer</button>'
+                    + '<div id="pedagogy_manual_current"></div></fieldset>')
+                content.append('<details open><summary>Historique des propositions automatiques</summary>'
+                    + '<style>#deferred_grade_result{max-height:18em;overflow:auto}'
+                    + '#deferred_grade_result table{border-collapse:collapse;width:100%}'
+                    + '#deferred_grade_result th,#deferred_grade_result td{border:1px solid #AAA;'
+                    + 'padding:.2em;white-space:normal;vertical-align:top}'
+                    + '#deferred_grade_result th{position:sticky;top:0;background:#EEE}</style>'
+                    + '<div id="deferred_grade_result"></div></details>')
             self.nr_grades = self.get_grades().get_html(content, self.source)
             self.grading.id = "grading"
             if GRADING:
@@ -2634,6 +2644,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         else:
             self.question.innerHTML = ''.join(content)
         if GRADING:
+            self.pedagogy_grades = PEDAGOGY_GRADES
             self.deferred_grade_recorded(DEFERRED_GRADES)
             update_feedback(WHERE[10])
 
@@ -2661,24 +2672,49 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 return found
         return None
 
+    def pedagogy_question_path(self, node, question_id, path):
+        """Return a readable Exercise › Section › Question breadcrumb."""
+        current = path[:]
+        if node['title']:
+            current.append(node['title'])
+        if node['id'] == question_id:
+            return current
+        for child in node['children']:
+            found = self.pedagogy_question_path(child, question_id, current)
+            if found:
+                return found
+        return None
+
+    def pedagogy_question_label(self, question_id):
+        pedagogy = self.options['pedagogy']
+        if pedagogy and pedagogy['explicit']:
+            for root in pedagogy['roots']:
+                path = self.pedagogy_question_path(root, question_id, [])
+                if path:
+                    return ' › '.join(path)
+        return question_id
+
+    def pedagogy_scope_questions(self, scope):
+        """Return answer indexes for question, containing exercise or copy."""
+        pedagogy = self.options['pedagogy']
+        if scope == 'question':
+            return [self.current_question]
+        questions = []
+        if scope == 'exercise' and pedagogy and pedagogy['explicit']:
+            for root in pedagogy['roots']:
+                if root['kind'] == 'exercise' and self.pedagogy_node_contains(
+                        root, self.current_question):
+                    self.pedagogy_collect_questions(root, questions)
+                    return questions
+        return list(range(self.options['QUESTION_COUNT']))
+
     def request_deferred_scope(self, event, scope, notify_parent=False):
         """Queue an explicit question, exercise or copy correction."""
         if event:
             stop_event(event)
         if not self.grading_allowed():
             return
-        questions = []
-        pedagogy = self.options['pedagogy']
-        if scope == 'question':
-            questions = [self.current_question]
-        elif scope == 'exercise' and pedagogy and pedagogy['explicit']:
-            for root in pedagogy['roots']:
-                if root['kind'] == 'exercise' and self.pedagogy_node_contains(root, self.current_question):
-                    self.pedagogy_collect_questions(root, questions)
-                    break
-        else:
-            questions = list(range(self.options['QUESTION_COUNT']))
-        self.deferred_grading_queue = questions
+        self.deferred_grading_queue = self.pedagogy_scope_questions(scope)
         self.deferred_grading_notify_parent = notify_parent
         self.run_next_deferred_grade()
 
@@ -2713,14 +2749,18 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             cell.textContent = label
             header.appendChild(cell)
         table.appendChild(header)
-        for entry in history:
+        index = len(history) - 1
+        while index >= 0:
+            entry = history[index]
+            index -= 1
             result = entry[3] or {}
             score = '—'
             if ('awarded' in result and 'points' in result
                     and result['awarded'] is not None and result['points'] is not None):
                 score = result['awarded'] + ' / ' + result['points']
             row = document.createElement('TR')
-            values = [nice_date(entry[0]), entry[1], entry[2], score,
+            values = [nice_date(entry[0]), entry[1],
+                      self.pedagogy_question_label(entry[2]), score,
                       result['answer'] or '—', result['expected'] or '—',
                       result['status'] or 'proposition']
             for value in values:
@@ -2729,6 +2769,118 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 row.appendChild(cell)
             table.appendChild(row)
         target.appendChild(table)
+        self.update_pedagogy_grade_summary()
+
+    def pedagogy_metadata_for_question(self, question):
+        pedagogy = self.options['pedagogy']
+        if pedagogy and pedagogy['explicit']:
+            for root in pedagogy['roots']:
+                node = self.pedagogy_question_node(root, question)
+                if node:
+                    return node
+        return None
+
+    def pedagogy_scope_score(self, questions):
+        """Return current automatic proposal and explicit manual grading totals."""
+        latest = {}
+        for entry in self.deferred_grading_history or []:
+            latest[entry[2]] = entry[3] or {}
+        automatic = 0
+        automatic_maximum = 0
+        automatic_count = 0
+        manual = 0
+        manual_maximum = 0
+        manual_count = 0
+        has_unbounded = False
+        pedagogy = self.options['pedagogy']
+        for question in questions:
+            question_id = (pedagogy and pedagogy['explicit']
+                and pedagogy['flat_ids'][question] or 'legacy-question-' + (question + 1))
+            result = latest[question_id]
+            if (result and 'awarded' in result and 'points' in result
+                    and result['awarded'] is not None):
+                automatic += Number(result['awarded'])
+                automatic_maximum += Number(result['points'])
+                automatic_count += 1
+            node = self.pedagogy_metadata_for_question(question)
+            if node and not node['has_points']:
+                has_unbounded = True
+            elif node:
+                manual_maximum += Number(node['points'])
+            grade = self.pedagogy_grades[question_id]
+            if grade:
+                manual += Number(grade[3])
+                manual_count += 1
+        automatic_text = automatic_count and (
+            automatic + ' / ' + automatic_maximum) or 'aucune proposition'
+        if manual_count:
+            manual_text = str(manual)
+            if not has_unbounded:
+                manual_text += ' / ' + manual_maximum
+            else:
+                manual_text += ' (barème libre inclus)'
+        else:
+            manual_text = 'non notée'
+        return 'automatique : ' + automatic_text + ' ; manuelle : ' + manual_text
+
+    def update_pedagogy_grade_summary(self):
+        """Refresh question/exercise/copy scores and the current manual input."""
+        target = document.getElementById('pedagogy_grade_summary')
+        if not target:
+            return
+        lines = []
+        for scope, label in [('question', 'Question'), ('exercise', 'Exercice'),
+                             ('copy', 'Copie')]:
+            lines.append('<b>' + label + '</b> — '
+                         + self.pedagogy_scope_score(self.pedagogy_scope_questions(scope)))
+        target.innerHTML = '<br>'.join(lines)
+        pedagogy = self.options['pedagogy']
+        question_id = (pedagogy and pedagogy['explicit']
+            and pedagogy['flat_ids'][self.current_question]
+            or 'legacy-question-' + (self.current_question + 1))
+        node = self.pedagogy_metadata_for_question(self.current_question)
+        field = document.getElementById('pedagogy_manual_value')
+        label = document.getElementById('pedagogy_manual_label')
+        current = document.getElementById('pedagogy_manual_current')
+        if node and node['has_points']:
+            field.max = node['points']
+            label.textContent = 'Note sur ' + node['points'] + ' :'
+        else:
+            field.removeAttribute('max')
+            label.textContent = 'Note libre :'
+        grade = self.pedagogy_grades[question_id]
+        if grade:
+            field.value = grade[3]
+            current.textContent = 'Dernière note : ' + grade[3] + ' — ' + grade[1]
+        else:
+            field.value = ''
+            current.textContent = 'Aucune note manuelle.'
+
+    def record_pedagogy_grade(self, event):
+        """Record the current question grade, bounded by explicit points."""
+        stop_event(event)
+        if not self.grading_allowed():
+            return
+        field = document.getElementById('pedagogy_manual_value')
+        if field.value == '' or isNaN(Number(field.value)) or Number(field.value) < 0:
+            self.popup_message('Saisissez une note numérique positive ou nulle.')
+            return
+        maximum = field.getAttribute('max') or ''
+        if maximum != '' and Number(field.value) > Number(maximum):
+            self.popup_message('La note ne peut pas dépasser ' + maximum + '.')
+            return
+        pedagogy = self.options['pedagogy']
+        question_id = (pedagogy and pedagogy['explicit']
+            and pedagogy['flat_ids'][self.current_question]
+            or 'legacy-question-' + (self.current_question + 1))
+        do_post_data({'student': STUDENT, 'question_id': question_id,
+                      'value': field.value, 'maximum': maximum},
+                     'record_pedagogy_grade/' + COURSE + '?ticket=' + TICKET)
+
+    def pedagogy_grade_recorded(self, grades):
+        """Apply the server-confirmed manual pedagogical grades."""
+        self.pedagogy_grades = grades
+        self.update_pedagogy_grade_summary()
 
     def grade(self, event):
         """Set the grade"""

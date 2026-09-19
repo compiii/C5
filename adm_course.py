@@ -6,7 +6,9 @@ WHAT = ['bonus_time', 'status', 'nr_answered', 'grades', 'comments', 'version',
         'feedback', 'graders',
         'nr_blurs', 'blur_time', 'fullscreen']
 if CORRECTION_VIEW:
-    WHAT.extend(['grading_status', 'automatic_score', 'automatic_graders'])
+    WHAT.append('grading_status')
+    WHAT.append('automatic_score')
+    WHAT.append('automatic_graders')
 
 sums = {}
 

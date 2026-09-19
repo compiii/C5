@@ -22,6 +22,7 @@ import glob
 import csv
 import copy
 import signal
+import math
 from aiohttp import web, WSMsgType
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response,StreamResponse
@@ -224,6 +225,7 @@ async def editor(session:Session, is_admin:bool, course:CourseConfig, # pylint: 
             GRADE = {json.dumps(the_grade)};
             GRADES = {json.dumps(grades)};
             DEFERRED_GRADES = {json.dumps(course.get_deferred_grade_entries(login) if grading else [])};
+            PEDAGOGY_GRADES = {json.dumps(course.get_pedagogy_grades(login) if grading else {})};
             COURSE_CONFIG = {json.dumps(course.get_config())};
             COURSE_CONFIG['feedback'] = {feedback};
             COMMENT_STRING = {json.dumps(course.get_language()[1])};
@@ -363,6 +365,38 @@ async def record_deferred_grade(request:Request) -> Response:
     history = course.append_deferred_grade(login, entry)
     return answer('ccccc.deferred_grade_recorded('
                   + json.dumps(history) + ')')
+
+async def record_pedagogy_grade(request:Request) -> Response:
+    """Record a bounded human grade for one stable pedagogical question."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    if course.state != 'Grade':
+        raise web.HTTPConflict(text='Grading is available only in Grade mode')
+    post = await request.post()
+    login = str(post['student'])
+    if not os.path.isdir(f'{course.dir_log}/{login}'):
+        raise web.HTTPNotFound(text='Student work not found')
+    question_id = str(post['question_id'])
+    if not re.fullmatch(r'[A-Za-z0-9._-]{1,96}', question_id):
+        raise web.HTTPBadRequest(text='Invalid pedagogical question identifier')
+    try:
+        value = float(post['value'])
+    except (TypeError, ValueError) as error:
+        raise web.HTTPBadRequest(text='Invalid grade') from error
+    if not math.isfinite(value) or value < 0:
+        raise web.HTTPBadRequest(text='Grade must be a non-negative finite number')
+    maximum = None
+    if str(post.get('maximum', '')):
+        try:
+            maximum = float(post['maximum'])
+        except (TypeError, ValueError) as error:
+            raise web.HTTPBadRequest(text='Invalid maximum') from error
+        if not math.isfinite(maximum) or maximum < 0 or value > maximum:
+            raise web.HTTPBadRequest(text='Grade exceeds the question maximum')
+    entry = [int(time.time()), session.login, question_id, value, maximum]
+    grades = course.append_pedagogy_grade(login, entry)
+    return answer('ccccc.pedagogy_grade_recorded(' + json.dumps(grades) + ')')
 
 async def deferred_grade_session(request:Request) -> Response:
     """Orchestrate explicit copy grading for every student in Grade mode."""
@@ -2903,6 +2937,7 @@ def main():
                     web.post('/upload_media/{compiler}/{course}', upload_media),
                     web.post('/record_grade/{course}', record_grade),
                     web.post('/record_deferred_grade/{course}', record_deferred_grade),
+                    web.post('/record_pedagogy_grade/{course}', record_pedagogy_grade),
                     web.post('/adm/c5/{action}', adm_c5),
                     web.post('/adm/building/{building}', adm_building_store),
                     web.post('/adm/session/{course}/{action}', adm_config),

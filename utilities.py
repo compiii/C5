@@ -733,12 +733,34 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
             score = f'{awarded:g} / {maximum:g}'
         return {'score': score, 'graders': ' '.join(sorted(graders))}
 
-    def append_deferred_grade(self, login:str, result:List) -> str:
+    def append_deferred_grade(self, login:str, result:List) -> List:
         """Record automation separately from authoritative manual grades."""
         path = pathlib.Path(self.dir_log) / login / 'automatic-grades.log'
         with path.open('a', encoding='utf-8') as file:
             file.write(json.dumps(result, ensure_ascii=False) + '\n')
         return self.get_deferred_grade_entries(login)
+
+    def get_pedagogy_grades(self, login:str) -> Dict[str,List]:
+        """Return the latest explicit manual grade for each pedagogical question."""
+        path = pathlib.Path(self.dir_log) / login / 'pedagogy-grades.log'
+        grades = {}
+        if not path.exists():
+            return grades
+        for line in path.read_text(encoding='utf-8').splitlines():
+            try:
+                entry = json.loads(line)
+                if isinstance(entry, list) and len(entry) == 5:
+                    grades[str(entry[2])] = entry
+            except (TypeError, ValueError):
+                continue
+        return grades
+
+    def append_pedagogy_grade(self, login:str, grade:List) -> Dict[str,List]:
+        """Append a human pedagogical grade without changing legacy grades."""
+        path = pathlib.Path(self.dir_log) / login / 'pedagogy-grades.log'
+        with path.open('a', encoding='utf-8') as file:
+            file.write(json.dumps(grade, ensure_ascii=False) + '\n')
+        return self.get_pedagogy_grades(login)
 
     def running(self, login:str, hostname:str=None) -> bool:
         """If the session running for the user"""
