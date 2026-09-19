@@ -2760,6 +2760,10 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             text = text[:77] + '…'
         return answer_type + ' — ' + text
 
+    def pedagogy_newest_grade_first(self, first, second):
+        """RapydScript-compatible comparator for newest-first grade events."""
+        return second[0] - first[0]
+
     def render_pedagogy_grade_history(self):
         """Display automatic proposals and manual decisions newest first."""
         target = document.getElementById('deferred_grade_result')
@@ -2774,7 +2778,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         if not len(events):
             target.textContent = 'Aucune notation enregistrée.'
             return
-        events.sort(lambda first, second: second[0] - first[0])
+        events.sort(self.pedagogy_newest_grade_first)
         table = document.createElement('TABLE')
         header = document.createElement('TR')
         for label in ['Date', 'Origine', 'Correcteur', 'Question', 'Note',
