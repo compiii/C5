@@ -2622,10 +2622,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'question\')">Question</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'exercise\')">Exercice</button> ')
                 content.append('<button onclick="ccccc.request_deferred_scope(event, \'copy\')">Copie</button> ')
-                content.append('<a target="_blank" href="/deferred_grade_session/' + COURSE
-                    + '?ticket=' + TICKET + '">Toutes les copies</a>')
-                content.append('<div>Automatique (historique séparé)</div>'
-                    + '<pre id="deferred_grade_result"></pre>'
+                content.append('<div>Propositions automatiques (historique séparé)</div>'
+                    + '<div id="deferred_grade_result"></div>'
                     + '<div>Manuel / final : barème ci-dessous</div></fieldset>')
             self.nr_grades = self.get_grades().get_html(content, self.source)
             self.grading.id = "grading"
@@ -2652,6 +2650,16 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             questions.append(node['answer_index'])
         for child in node['children']:
             self.pedagogy_collect_questions(child, questions)
+
+    def pedagogy_question_node(self, node, question):
+        """Return metadata for one answer index."""
+        if node['answer_index'] == question:
+            return node
+        for child in node['children']:
+            found = self.pedagogy_question_node(child, question)
+            if found:
+                return found
+        return None
 
     def request_deferred_scope(self, event, scope, notify_parent=False):
         """Queue an explicit question, exercise or copy correction."""
@@ -2688,11 +2696,39 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         self.worker.postMessage(['deferred_grade', question, source])
 
     def deferred_grade_recorded(self, history):
-        """Display the separately persisted automatic history."""
+        """Display a readable, append-only automatic grading history."""
         self.deferred_grading_history = history
         target = document.getElementById('deferred_grade_result')
-        if target:
-            target.textContent = history
+        if not target:
+            return
+        target.innerHTML = ''
+        if not history or not len(history):
+            target.textContent = 'Aucune proposition automatique enregistrée.'
+            return
+        table = document.createElement('TABLE')
+        header = document.createElement('TR')
+        for label in ['Date', 'Correcteur', 'Question', 'Note proposée',
+                      'Réponse analysée', 'Réponse attendue', 'État']:
+            cell = document.createElement('TH')
+            cell.textContent = label
+            header.appendChild(cell)
+        table.appendChild(header)
+        for entry in history:
+            result = entry[3] or {}
+            score = '—'
+            if ('awarded' in result and 'points' in result
+                    and result['awarded'] is not None and result['points'] is not None):
+                score = result['awarded'] + ' / ' + result['points']
+            row = document.createElement('TR')
+            values = [nice_date(entry[0]), entry[1], entry[2], score,
+                      result['answer'] or '—', result['expected'] or '—',
+                      result['status'] or 'proposition']
+            for value in values:
+                cell = document.createElement('TD')
+                cell.textContent = value
+                row.appendChild(cell)
+            table.appendChild(row)
+        target.appendChild(table)
 
     def grade(self, event):
         """Set the grade"""
@@ -3042,6 +3078,24 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 pedagogy = self.options['pedagogy']
                 question_id = (pedagogy and pedagogy['explicit']
                     and pedagogy['flat_ids'][question] or 'legacy-question-' + (question + 1))
+                answer = self.options['ANSWERS'][question]
+                source = answer and answer[0] or ''
+                if question == self.current_question:
+                    source = self.source
+                points = 0
+                title = question_id
+                if pedagogy and pedagogy['explicit']:
+                    for root in pedagogy['roots']:
+                        node = self.pedagogy_question_node(root, question)
+                        if node:
+                            points = node['points']
+                            title = node['title'] or question_id
+                            break
+                result['answer'] = source
+                result['points'] = points
+                result['title'] = title
+                if 'fraction' in result and result['fraction'] is not None:
+                    result['awarded'] = result['fraction'] * points
                 do_post_data({
                     'student': STUDENT,
                     'question_id': question_id,

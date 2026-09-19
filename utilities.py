@@ -696,12 +696,49 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
         path = pathlib.Path(self.dir_log) / login / 'automatic-grades.log'
         return path.read_text(encoding='utf-8') if path.exists() else ''
 
+    def get_deferred_grade_entries(self, login:str) -> List:
+        """Return valid automatic grading records, keeping malformed lines inert."""
+        entries = []
+        for line in self.get_deferred_grades(login).splitlines():
+            try:
+                entry = json.loads(line)
+                if isinstance(entry, list) and len(entry) == 4:
+                    entries.append(entry)
+            except (TypeError, ValueError):
+                continue
+        return entries
+
+    def deferred_grade_summary(self, login:str) -> Dict[str,str]:
+        """Summarize the latest automatic proposal for every compatible question."""
+        latest = {}
+        graders = set()
+        for entry in self.get_deferred_grade_entries(login):
+            latest[entry[2]] = entry
+            graders.add(str(entry[1]))
+        awarded = 0
+        maximum = 0
+        scored = 0
+        for entry in latest.values():
+            result = entry[3]
+            if not isinstance(result, dict):
+                continue
+            points = result.get('points')
+            value = result.get('awarded')
+            if isinstance(points, (int, float)) and isinstance(value, (int, float)):
+                awarded += value
+                maximum += points
+                scored += 1
+        score = ''
+        if scored:
+            score = f'{awarded:g} / {maximum:g}'
+        return {'score': score, 'graders': ' '.join(sorted(graders))}
+
     def append_deferred_grade(self, login:str, result:List) -> str:
         """Record automation separately from authoritative manual grades."""
         path = pathlib.Path(self.dir_log) / login / 'automatic-grades.log'
         with path.open('a', encoding='utf-8') as file:
             file.write(json.dumps(result, ensure_ascii=False) + '\n')
-        return self.get_deferred_grades(login)
+        return self.get_deferred_grade_entries(login)
 
     def running(self, login:str, hostname:str=None) -> bool:
         """If the session running for the user"""

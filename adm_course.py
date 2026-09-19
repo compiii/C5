@@ -6,7 +6,7 @@ WHAT = ['bonus_time', 'status', 'nr_answered', 'grades', 'comments', 'version',
         'feedback', 'graders',
         'nr_blurs', 'blur_time', 'fullscreen']
 if CORRECTION_VIEW:
-    WHAT.append('grading_status')
+    WHAT.extend(['grading_status', 'automatic_score', 'automatic_graders'])
 
 sums = {}
 
@@ -40,7 +40,12 @@ def display(): # pylint: disable=too-many-locals,too-many-branches,too-many-stat
         sums[what] = ''
         sums[what + '\001done']  = ''
         sums[what + '\001feedback']  = ''
-    text = ["""
+    text = []
+    if CORRECTION_VIEW:
+        text.append('<h2>Correction</h2><p><a target="_blank" href="/deferred_grade_session/'
+                    + COURSE + '?ticket=' + TICKET
+                    + '">Lancer la correction automatique de toutes les copies</a></p>')
+    text.append("""
 <style>
 BODY { font-family: sans-serif; }
 TABLE { border-spacing: 0px; }
@@ -75,10 +80,12 @@ DIV[onclick]:hover { background: #EEE }
 <th><div onclick="sort_report(10)" class="rotate">Number of<br>focus lost</div>
 <th><div onclick="sort_report(11)" class="rotate">Blur time<br>in seconds</div>
 <th><div onclick="sort_report(12)" class="rotate">Allow not<br>fullscreen</div>
-"""]
+""")
     if CORRECTION_VIEW:
         text.append('<th><div onclick="sort_report(13)">Correction</div>')
-        files_column = '14'
+        text.append('<th><div onclick="sort_report(14)">Note automatique</div>')
+        text.append('<th><div onclick="sort_report(15)">Correcteurs automatiques</div>')
+        files_column = '16'
     else:
         files_column = '13'
     text.append('<th><div onclick="sort_report(' + files_column + ')">Files</div></tr>')

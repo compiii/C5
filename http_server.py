@@ -223,7 +223,7 @@ async def editor(session:Session, is_admin:bool, course:CourseConfig, # pylint: 
             SERVER_TIME = {time.time()};
             GRADE = {json.dumps(the_grade)};
             GRADES = {json.dumps(grades)};
-            DEFERRED_GRADES = {json.dumps(course.get_deferred_grades(login) if grading else '')};
+            DEFERRED_GRADES = {json.dumps(course.get_deferred_grade_entries(login) if grading else [])};
             COURSE_CONFIG = {json.dumps(course.get_config())};
             COURSE_CONFIG['feedback'] = {feedback};
             COMMENT_STRING = {json.dumps(course.get_language()[1])};
@@ -514,6 +514,9 @@ async def adm_course(request:Request, correction_view:bool=False) -> Response:
                 os.path.exists(automatic_grades)
                 and os.path.getsize(automatic_grades) > 0
             )
+            automatic_summary = course.deferred_grade_summary(user)
+            student['automatic_score'] = automatic_summary['score']
+            student['automatic_graders'] = automatic_summary['graders']
             with open(f'{course.dir_log}/{user}/journal.log', encoding='utf-8') as file:
                 student['journal'] = file.read()
 
