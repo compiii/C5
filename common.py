@@ -1112,6 +1112,10 @@ class Journal:
         for index, nb_i, nb_d, index_start, line in changes:
             action = self.lines[index] or '✍'
             y = line.y - (self.offset_y or 0)
+            if action[0] not in draw:
+                # Journals survive application upgrades. Ignore an event from
+                # an older/newer C5 version when this renderer does not know it.
+                continue
             width = draw[action[0]](action, x, y)
             if width > 0:
                 new_disable_ok = False

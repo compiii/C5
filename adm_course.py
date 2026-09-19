@@ -156,7 +156,7 @@ DIV[onclick]:hover { background: #EEE }
         graders.sort()
         journal['graders'] = ' '.join(graders)
         if CORRECTION_VIEW:
-            automatic_grading = student.get('automatic_grading', False)
+            automatic_grading = student.automatic_grading or False
             if journal['feedback'] == 5:
                 journal['grading_status'] = 'Finalisée'
             elif automatic_grading and nbr_grades:

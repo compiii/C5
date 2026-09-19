@@ -566,6 +566,11 @@ async def adm_participation(request:Request) -> Response:
     }
     rows = []
     for login in sorted(logins):
+        try:
+            profile = await utilities.USERS.infos(login)
+            student_name = profile['sn'].upper() + ' ' + profile['fn'].title()
+        except (KeyError, OSError, ValueError):
+            student_name = '?'
         state = course.active_teacher_room.get(login)
         opened = bool(state and state.last_time)
         journal = pathlib.Path(course.dir_log) / login / 'journal.log'
@@ -589,6 +594,7 @@ async def adm_participation(request:Request) -> Response:
                 state.feedback, state.fullscreen, state.remarks,
             ]
         rows.append('<tr><td>' + html.escape(login)
+                    + '<td>' + html.escape(student_name)
                     + '<td>' + html.escape(label)
                     + ''.join('<td>' + html.escape(str(value)) for value in details[:3])
                     + '<td>' + html.escape(last_time)
@@ -601,7 +607,7 @@ async def adm_participation(request:Request) -> Response:
     return answer(session.header() + '''
         <h2>Participation</h2>
         <p>État de la copie étudiant, indépendant de son état de correction.</p>
-        <table border><tr><th>Étudiant<th>Participation<th>Active<th>Correcteur
+        <table border><tr><th>Étudiant<th>Nom<th>Participation<th>Active<th>Correcteur
         <th>Salle<th>Dernière activité<th>Sorties de fenêtre
         <th>Questions validées<th>Dernière machine<th>Temps bonus
         <th>Note courante<th>Durée hors fenêtre<th>Retour étudiant

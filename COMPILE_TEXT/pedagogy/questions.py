@@ -33,7 +33,10 @@ class QContext(Question):
         return ''
 
     def deferred_grading(self, source):
-        return {'fraction': int(source.strip() == 'Titre'), 'expected': 'Titre'}
+        fraction = 0
+        if source.strip() == 'Titre':
+            fraction = 1
+        return {'fraction': fraction, 'expected': 'Titre'}
 
 
 class QDetail(Question):
@@ -45,7 +48,10 @@ class QDetail(Question):
         return ''
 
     def deferred_grading(self, source):
-        return {'fraction': int(source.strip() == 'Explication'), 'expected': 'Explication'}
+        fraction = 0
+        if source.strip() == 'Explication':
+            fraction = 1
+        return {'fraction': fraction, 'expected': 'Explication'}
 
 
 class QConclusion(Question):
@@ -57,7 +63,10 @@ class QConclusion(Question):
         return ''
 
     def deferred_grading(self, source):
-        return {'fraction': int(source.strip() == 'Conclusion'), 'expected': 'Conclusion'}
+        fraction = 0
+        if source.strip() == 'Conclusion':
+            fraction = 1
+        return {'fraction': fraction, 'expected': 'Conclusion'}
 
 
 def build_pedagogy():
