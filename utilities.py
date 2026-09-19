@@ -740,19 +740,26 @@ class CourseConfig: # pylint: disable=too-many-instance-attributes,too-many-publ
             file.write(json.dumps(result, ensure_ascii=False) + '\n')
         return self.get_deferred_grade_entries(login)
 
-    def get_pedagogy_grades(self, login:str) -> Dict[str,List]:
-        """Return the latest explicit manual grade for each pedagogical question."""
+    def get_pedagogy_grade_entries(self, login:str) -> List:
+        """Return the append-only history of explicit pedagogical grades."""
         path = pathlib.Path(self.dir_log) / login / 'pedagogy-grades.log'
-        grades = {}
+        entries = []
         if not path.exists():
-            return grades
+            return entries
         for line in path.read_text(encoding='utf-8').splitlines():
             try:
                 entry = json.loads(line)
                 if isinstance(entry, list) and len(entry) == 5:
-                    grades[str(entry[2])] = entry
+                    entries.append(entry)
             except (TypeError, ValueError):
                 continue
+        return entries
+
+    def get_pedagogy_grades(self, login:str) -> Dict[str,List]:
+        """Return the latest explicit manual grade for each pedagogical question."""
+        grades = {}
+        for entry in self.get_pedagogy_grade_entries(login):
+            grades[str(entry[2])] = entry
         return grades
 
     def append_pedagogy_grade(self, login:str, grade:List) -> Dict[str,List]:

@@ -226,6 +226,7 @@ async def editor(session:Session, is_admin:bool, course:CourseConfig, # pylint: 
             GRADES = {json.dumps(grades)};
             DEFERRED_GRADES = {json.dumps(course.get_deferred_grade_entries(login) if grading else [])};
             PEDAGOGY_GRADES = {json.dumps(course.get_pedagogy_grades(login) if grading else {})};
+            PEDAGOGY_GRADE_HISTORY = {json.dumps(course.get_pedagogy_grade_entries(login) if grading else [])};
             COURSE_CONFIG = {json.dumps(course.get_config())};
             COURSE_CONFIG['feedback'] = {feedback};
             COMMENT_STRING = {json.dumps(course.get_language()[1])};
@@ -381,7 +382,7 @@ async def record_pedagogy_grade(request:Request) -> Response:
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,96}', question_id):
         raise web.HTTPBadRequest(text='Invalid pedagogical question identifier')
     try:
-        value = float(post['value'])
+        value = float(str(post['value']).strip().replace(',', '.'))
     except (TypeError, ValueError) as error:
         raise web.HTTPBadRequest(text='Invalid grade') from error
     if not math.isfinite(value) or value < 0:
@@ -396,7 +397,9 @@ async def record_pedagogy_grade(request:Request) -> Response:
             raise web.HTTPBadRequest(text='Grade exceeds the question maximum')
     entry = [int(time.time()), session.login, question_id, value, maximum]
     grades = course.append_pedagogy_grade(login, entry)
-    return answer('ccccc.pedagogy_grade_recorded(' + json.dumps(grades) + ')')
+    history = course.get_pedagogy_grade_entries(login)
+    return answer('ccccc.pedagogy_grade_recorded(' + json.dumps(grades)
+                  + ',' + json.dumps(history) + ')')
 
 async def deferred_grade_session(request:Request) -> Response:
     """Orchestrate explicit copy grading for every student in Grade mode."""
