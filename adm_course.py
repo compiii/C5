@@ -4,7 +4,9 @@ Generate the home page for a course.
 
 WHAT = ['bonus_time', 'status', 'nr_answered', 'grades', 'comments', 'version',
         'feedback', 'graders',
-        'nr_blurs', 'blur_time', 'fullscreen', 'grading_status']
+        'nr_blurs', 'blur_time', 'fullscreen']
+if CORRECTION_VIEW:
+    WHAT.append('grading_status')
 
 sums = {}
 
@@ -63,7 +65,7 @@ DIV[onclick]:hover { background: #EEE }
 <th><div onclick="sort_report(0)">Login</div>
 <th><div onclick="sort_report(1)">Name</div>
 <th><div onclick="sort_report(2)" class="rotate">Minutes<br>Bonus</div>
-<th><div onclick="sort_report(3)">Participation</div>
+<th><div onclick="sort_report(3)">Status</div>
 <th><div onclick="sort_report(4)" class="rotate">Questions<br>Validated</div>
 <th><div onclick="sort_report(5)" class="rotate">Grade</div>
 <th><div onclick="sort_report(6)" class="rotate">Comments</div>
@@ -73,9 +75,13 @@ DIV[onclick]:hover { background: #EEE }
 <th><div onclick="sort_report(10)" class="rotate">Number of<br>focus lost</div>
 <th><div onclick="sort_report(11)" class="rotate">Blur time<br>in seconds</div>
 <th><div onclick="sort_report(12)" class="rotate">Allow not<br>fullscreen</div>
-<th><div onclick="sort_report(13)">Correction</div>
-<th><div onclick="sort_report(14)">Files</div></tr>
 """]
+    if CORRECTION_VIEW:
+        text.append('<th><div onclick="sort_report(13)">Correction</div>')
+        files_column = '14'
+    else:
+        files_column = '13'
+    text.append('<th><div onclick="sort_report(' + files_column + ')">Files</div></tr>')
     cache = {}
     for login in students:
         print(login)
@@ -149,19 +155,20 @@ DIV[onclick]:hover { background: #EEE }
             journal['grades'] = grade.toFixed(2)
         graders.sort()
         journal['graders'] = ' '.join(graders)
-        automatic_grading = student.get('automatic_grading', False)
-        if journal['feedback'] == 5:
-            journal['grading_status'] = 'Finalisée'
-        elif automatic_grading and nbr_grades:
-            journal['grading_status'] = 'Automatique + manuelle'
-        elif automatic_grading:
-            journal['grading_status'] = 'Automatique effectuée'
-        elif nbr_grades:
-            journal['grading_status'] = 'Manuelle en cours'
-        elif student.status == 'done':
-            journal['grading_status'] = 'À corriger'
-        else:
-            journal['grading_status'] = 'Pas encore soumise'
+        if CORRECTION_VIEW:
+            automatic_grading = student.get('automatic_grading', False)
+            if journal['feedback'] == 5:
+                journal['grading_status'] = 'Finalisée'
+            elif automatic_grading and nbr_grades:
+                journal['grading_status'] = 'Automatique + manuelle'
+            elif automatic_grading:
+                journal['grading_status'] = 'Automatique effectuée'
+            elif nbr_grades:
+                journal['grading_status'] = 'Manuelle en cours'
+            elif student.status == 'done':
+                journal['grading_status'] = 'À corriger'
+            else:
+                journal['grading_status'] = 'Pas encore soumise'
 
     for login in students:
         student = STUDENTS[login]
@@ -294,6 +301,10 @@ DIV[onclick]:hover { background: #EEE }
         text.append('</tr>')
 
     text.append('</table>')
+
+    if CORRECTION_VIEW:
+        document.getElementById('top').innerHTML = text.join('')
+        return
 
     ###########################################################################
     ###########################################################################

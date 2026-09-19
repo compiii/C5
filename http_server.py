@@ -473,10 +473,14 @@ async def get_teacher_login_and_course(request:Request, allow=None) -> Tuple[Ses
         raise session.exception('not_teacher')
     return session, course
 
-async def adm_course(request:Request) -> Response:
+async def adm_course(request:Request, correction_view:bool=False) -> Response:
     """Course details page for administrators"""
     session, course = await get_teacher_login_and_course(request)
-    if not session.is_proctor(course):
+    if correction_view:
+        allowed = session.is_grader(course)
+    else:
+        allowed = session.is_proctor(course)
+    if not allowed:
         raise session.exception('not_proctor')
 
     stream = web.StreamResponse(headers={
@@ -488,6 +492,7 @@ async def adm_course(request:Request) -> Response:
     await stream.write(
         (session.header() + f"""
             <script>
+            CORRECTION_VIEW = {int(correction_view)};
             STUDENT_DICT = {json.dumps(course.active_teacher_room)};
             COURSE = '{course.course}';
             NOTATION = {json.dumps(course.config['notation'])};
@@ -528,6 +533,80 @@ async def adm_course(request:Request) -> Response:
             <div id="top"></div>
             """.encode('utf-8'))
     return stream
+
+async def adm_correction(request:Request) -> Response:
+    """Correction dashboard without altering the historical export page."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    if course.state != 'Grade':
+        return answer(session.header() + '''
+            <h2>Correction indisponible</h2>
+            <p>La session doit être explicitement placée en mode <b>Grade</b>.</p>
+            <p>L'option historique <code>force_grading_done</code> ne permet pas
+            de corriger hors de ce mode.</p>''')
+    return await adm_course(request, correction_view=True)
+
+async def adm_participation(request:Request) -> Response:
+    """Display copy participation independently from grading state."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_proctor(course):
+        raise session.exception('not_proctor')
+    logins = set(course.active_teacher_room)
+    logins.update(course.expected_students)
+    if os.path.isdir(course.dir_log):
+        logins.update(os.listdir(course.dir_log))
+    labels = {
+        'draft': 'Brouillon',
+        'nothing': 'Pas encore ouverte',
+        'pending': 'En attente',
+        'running': 'En cours',
+        'checkpoint': 'En salle d’attente',
+        'done': 'Participation terminée',
+    }
+    rows = []
+    for login in sorted(logins):
+        state = course.active_teacher_room.get(login)
+        opened = bool(state and state.last_time)
+        journal = pathlib.Path(course.dir_log) / login / 'journal.log'
+        opened = opened or journal.exists()
+        status = course.status(login)
+        if not opened:
+            label = 'Pas encore ouverte'
+        else:
+            label = labels.get(status, status)
+        last_time = ''
+        nr_answers = 0
+        details = ['', '', '', '', '', '', '', '', '', '', '']
+        if state:
+            nr_answers = state.nr_answers
+            if state.last_time:
+                last_time = time.strftime('%Y-%m-%d %H:%M:%S',
+                                          time.localtime(state.last_time))
+            details = [
+                state.active, state.teacher, state.room, state.nr_blurs,
+                state.hostname, state.bonus_time, state.grade, state.blur_time,
+                state.feedback, state.fullscreen, state.remarks,
+            ]
+        rows.append('<tr><td>' + html.escape(login)
+                    + '<td>' + html.escape(label)
+                    + ''.join('<td>' + html.escape(str(value)) for value in details[:3])
+                    + '<td>' + html.escape(last_time)
+                    + '<td>' + html.escape(str(details[3]))
+                    + '<td>' + str(nr_answers)
+                    + ''.join('<td>' + html.escape(str(value)) for value in details[4:])
+                    + '<td><a target="_blank" href="grade/'
+                    + html.escape(course.course) + '/' + html.escape(login)
+                    + '?ticket=' + html.escape(str(session.ticket)) + '">Ouvrir la copie</a>')
+    return answer(session.header() + '''
+        <h2>Participation</h2>
+        <p>État de la copie étudiant, indépendant de son état de correction.</p>
+        <table border><tr><th>Étudiant<th>Participation<th>Active<th>Correcteur
+        <th>Salle<th>Dernière activité<th>Sorties de fenêtre
+        <th>Questions validées<th>Dernière machine<th>Temps bonus
+        <th>Note courante<th>Durée hors fenêtre<th>Retour étudiant
+        <th>Plein écran autorisé<th>Remarques<th>Copie>'''
+        + ''.join(rows) + '</table>')
 
 async def git_pull(course, stream):
     """GIT pull for a course."""
@@ -2768,6 +2847,8 @@ def main():
                     web.get('/adm/session/{course}', adm_session), # Edit page
                     web.get('/adm/rename/{course}/{new}', adm_rename),
                     web.get('/adm/course/{course}', adm_course),
+                    web.get('/adm/participation/{course}', adm_participation),
+                    web.get('/adm/correction/{course}', adm_correction),
                     web.get('/adm/history/{course}', adm_history),
                     web.get('/adm/git_pull/{course}', adm_git_pull),
                     web.get('/adm/unsaved/{course}', adm_unsaved),

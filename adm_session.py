@@ -329,6 +329,10 @@ def select_tab(label):
         content = '<iframe src="adm/media/' + COURSE + '/list/*?ticket=' + TICKET + '"></iframe>'
     elif label == 'Results':
         content = '<iframe src="adm/course/' + COURSE + '?ticket=' + TICKET + '"></iframe>'
+    elif label == 'Participation':
+        content = '<iframe src="adm/participation/' + COURSE + '?ticket=' + TICKET + '"></iframe>'
+    elif label == 'Correction':
+        content = '<iframe src="adm/correction/' + COURSE + '?ticket=' + TICKET + '"></iframe>'
     elif label == 'History':
         content = '<iframe src="adm/history/' + COURSE + '?ticket=' + TICKET + '"></iframe>'
     elif label == 'Chat':
@@ -687,6 +691,8 @@ def init():
     <div id="Students" class="single">Students</div>
     <div id="Grading" class="single">Grading</div>
     <div id="Results" class="single">Export/Stats</div>
+    <div id="Participation" class="single">Participation</div>
+    <div id="Correction" class="single">Correction</div>
     <div id="History" class="single">History</div>
     <div id="Manage">Manage</div>
      <select onchange="select_action(this)" style="vertical-align: top;">
