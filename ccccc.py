@@ -4186,7 +4186,8 @@ class Grapic: # pylint: disable=too-many-public-methods
 
 def feedback_change(element):
     """The grader changed the feedback level"""
-    record('record_feedback/' + COURSE + '/' + STUDENT + '/' + element.value)
+    do_post_data({}, 'record_feedback/' + COURSE + '/' + STUDENT + '/' + element.value
+                 + '?ticket=' + TICKET)
 
 def update_feedback(feedback):
     """Update the feedback from server answer"""
@@ -4206,9 +4207,11 @@ def update_feedback(feedback):
 def grading_toggle(element):
     """Grading done or not"""
     if element.feedback != 5:
-        record('record_feedback/' + COURSE + '/' + STUDENT + '/5')
+        feedback = 5
     else:
-        record('record_feedback/' + COURSE + '/' + STUDENT + '/1')
+        feedback = 1
+    do_post_data({}, 'record_feedback/' + COURSE + '/' + STUDENT + '/' + feedback
+                 + '?ticket=' + TICKET)
 
 ccccc = CCCCC()
 def deferred_grade_message(event):

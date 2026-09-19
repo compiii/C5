@@ -413,12 +413,21 @@ async def deferred_grade_session(request:Request) -> Response:
     if course.state != 'Grade':
         raise web.HTTPConflict(text='Deferred grading is available only in Grade mode')
     students = sorted(path.name for path in pathlib.Path(course.dir_log).iterdir()
-                      if path.is_dir())
+                      if path.is_dir() and utilities.CONFIG.is_student(path.name))
+    finalized = [login for login in students
+                 if course.active_teacher_room.get(login)
+                 and course.active_teacher_room[login].feedback == 5]
     frames = ''.join(
         f'<iframe hidden src="/grade/{course.course}/{student}?ticket={session.ticket}" '
         f'data-student="{html.escape(student)}"></iframe>' for student in students)
+    warning = ''
+    if finalized:
+        warning = ('<p style="padding:.6em;background:#FFC"><b>Attention :</b> '
+                   + str(len(finalized)) + ' copie(s) finalisée(s) vont être rouvertes : '
+                   + ', '.join(html.escape(login) for login in finalized)
+                   + '. Il faudra les finaliser de nouveau.</p>')
     return answer(session.header() + '<h1>Correction automatique différée</h1>'
-        + '<p id="progress">Préparation…</p>' + frames + '''<script>
+        + warning + '<p id="progress">Préparation…</p>' + frames + '''<script>
         const frames = Array.from(document.querySelectorAll('iframe'));
         let done = 0;
         function refresh() {
@@ -441,6 +450,49 @@ async def deferred_grade_session(request:Request) -> Response:
         });
         refresh();
         </script>''')
+
+async def correction_export(request:Request) -> Response:
+    """Export effective pedagogical grades for student accounts only."""
+    session, course = await get_teacher_login_and_course(request)
+    if not session.is_grader(course):
+        raise session.exception('not_grader')
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Login', 'Nom', 'Participation', 'Note', 'Barème',
+                     'Correcteurs', 'Correction', 'Note automatique',
+                     'Correcteurs automatiques'])
+    if os.path.isdir(course.dir_log):
+        for login in sorted(os.listdir(course.dir_log)):
+            if not utilities.CONFIG.is_student(login):
+                continue
+            try:
+                profile = await utilities.USERS.infos(login)
+                name = profile['sn'].upper() + ' ' + profile['fn'].title()
+            except (KeyError, OSError, ValueError):
+                name = '?'
+            summary = course.pedagogy_grade_summary(login)
+            automatic = course.deferred_grade_summary(login)
+            state = course.active_teacher_room.get(login)
+            feedback = state.feedback if state else 0
+            if feedback == 5:
+                correction = 'Finalisée'
+            elif summary['has_manual'] and summary['has_automatic']:
+                correction = 'Automatique + manuelle'
+            elif summary['has_manual']:
+                correction = 'Manuelle en cours'
+            elif summary['has_automatic']:
+                correction = 'Automatique effectuée'
+            elif course.status(login) == 'done':
+                correction = 'À corriger'
+            else:
+                correction = 'Pas encore soumise'
+            writer.writerow([login, name, course.status(login), summary['score'],
+                             summary['maximum'], summary['graders'], correction,
+                             automatic['score'], automatic['graders']])
+    response = answer('\ufeff' + output.getvalue(), content_type='text/csv')
+    response.headers['Content-Disposition'] = (
+        'attachment; filename="' + course.course.replace('=', '-') + '-notes.csv"')
+    return response
 
 async def load_student_infos() -> None:
     """Load all student info in order to answer quickly"""
@@ -542,6 +594,8 @@ async def adm_course(request:Request, correction_view:bool=False) -> Response:
             """).encode('utf-8'))
     separator = ''
     for user in sorted(os.listdir(course.dir_log)):
+        if correction_view and not utilities.CONFIG.is_student(user):
+            continue
         files:List[str] = []
         student:Dict[str,Any] = {'files': files}
         for filename in sorted(os.listdir(f'{course.dir_log}/{user}')):
@@ -657,7 +711,7 @@ async def adm_participation(request:Request) -> Response:
         <p>État de la copie étudiant, indépendant de son état de correction.</p>
         <table border><tr><th>Étudiant<th>Nom<th>Participation<th>Active<th>Correcteur
         <th>Salle<th>Dernière activité<th>Sorties de fenêtre
-        <th>Questions validées<th>Dernière machine<th>Temps bonus
+        <th>Validations enregistrées<th>Dernière machine<th>Temps bonus
         <th>Note courante<th>Durée hors fenêtre<th>Retour étudiant
         <th>Plein écran autorisé<th>Remarques<th>Copie>'''
         + ''.join(rows) + '</table>')
@@ -2903,6 +2957,7 @@ def main():
                     web.get('/adm/course/{course}', adm_course),
                     web.get('/adm/participation/{course}', adm_participation),
                     web.get('/adm/correction/{course}', adm_correction),
+                    web.get('/adm/correction_export/{course}', correction_export),
                     web.get('/adm/history/{course}', adm_history),
                     web.get('/adm/git_pull/{course}', adm_git_pull),
                     web.get('/adm/unsaved/{course}', adm_unsaved),
@@ -2932,6 +2987,7 @@ def main():
                     web.get('/computer/{course}/{building}/{column}/{line}/{message:.*}', computer),
                     web.get('/computer/{course}/{building}/{column}/{line}', computer),
                     web.get('/record_feedback/{course}/{student}/{feedback}', record_feedback),
+                    web.post('/record_feedback/{course}/{student}/{feedback}', record_feedback),
                     web.get('/grade/{course}/{login}', grade),
                     web.get('/deferred_grade_session/{course}', deferred_grade_session),
                     web.get('/zip/{course}', my_zip),

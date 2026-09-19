@@ -44,7 +44,10 @@ def display(): # pylint: disable=too-many-locals,too-many-branches,too-many-stat
         sums[what + '\001feedback']  = ''
     text = []
     if CORRECTION_VIEW:
-        text.append('<h2>Correction</h2><p><a target="_blank" href="/deferred_grade_session/'
+        text.append('<h2>Correction</h2><p><a href="/adm/correction_export/'
+                    + COURSE + '?ticket=' + TICKET
+                    + '">Exporter les notes des étudiants (CSV)</a></p>'
+                    + '<p><a target="_blank" href="/deferred_grade_session/'
                     + COURSE + '?ticket=' + TICKET
                     + '">Lancer la correction automatique de toutes les copies</a></p>')
     text.append("""
@@ -73,7 +76,7 @@ DIV[onclick]:hover { background: #EEE }
 <th><div onclick="sort_report(1)">Name</div>
 <th><div onclick="sort_report(2)" class="rotate">Minutes<br>Bonus</div>
 <th><div onclick="sort_report(3)">Status</div>
-<th><div onclick="sort_report(4)" class="rotate">Questions<br>Validated</div>
+<th><div onclick="sort_report(4)" class="rotate">Validations<br>enregistrées</div>
 <th><div onclick="sort_report(5)" class="rotate">Grade</div>
 <th><div onclick="sort_report(6)" class="rotate">Comments</div>
 <th><div onclick="sort_report(7)" class="rotate">Version</div>
