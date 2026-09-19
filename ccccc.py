@@ -2024,6 +2024,10 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         trace('CCCCC: onkeydown', self.allow_edit, self.compositing, self.compile_now, event)
         if self.compositing:
             return
+        # A completed student answer is read-only while grading, but the
+        # teacher must still be able to type in the separate grade field.
+        if GRADING and event.target.id == 'pedagogy_manual_value':
+            return
         if not self.can_edit_current_question():
             if (event.metaKey or event.ctrlKey) and event.key in ('c', 'C'):
                 return
@@ -2328,6 +2332,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
     def onkeyup(self, event):
         """Key up"""
         if self.compositing:
+            return
+        if GRADING and event.target.id == 'pedagogy_manual_value':
             return
         if not self.can_edit_current_question():
             stop_event(event)
@@ -2634,6 +2640,10 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     + 'pattern="[0-9]+([.,][0-9]+)?"> '
                     + '<button onclick="ccccc.record_pedagogy_grade(event)">Enregistrer</button>'
                     + '<div id="pedagogy_manual_current"></div></fieldset>')
+                content.append('<details><summary>Aperçu de la réponse</summary>'
+                    + '<pre id="pedagogy_answer_preview" style="max-height:18em;'
+                    + 'overflow:auto;white-space:pre-wrap;border:1px solid #AAA;'
+                    + 'padding:.35em"></pre></details>')
                 content.append('<details open><summary>Historique des notations</summary>'
                     + '<style>#deferred_grade_result{max-height:18em;overflow:auto}'
                     + '#deferred_grade_result table{border-collapse:collapse;width:100%}'
@@ -2748,18 +2758,6 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         self.render_pedagogy_grade_history()
         self.update_pedagogy_grade_summary()
 
-    def pedagogy_answer_preview(self, value):
-        """Describe an answer without flooding the grading panel with its contents."""
-        if value is None or value == '':
-            return '—'
-        text = str(value)
-        answer_type = 'Texte court'
-        if '\n' in text:
-            answer_type = 'Texte multiligne'
-        if len(text) > 80:
-            text = text[:77] + '…'
-        return answer_type + ' — ' + text
-
     def render_pedagogy_grade_history(self):
         """Display automatic proposals and manual decisions newest first."""
         target = document.getElementById('deferred_grade_result')
@@ -2780,22 +2778,18 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         events.reverse()
         table = document.createElement('TABLE')
         header = document.createElement('TR')
-        for label in ['Date', 'Origine', 'Correcteur', 'Question', 'Note',
-                      'Aperçu de la réponse']:
+        for label in ['Date', 'Origine', 'Correcteur', 'Question', 'Note']:
             cell = document.createElement('TH')
             cell.textContent = label
             header.appendChild(cell)
         table.appendChild(header)
         for event in events:
             score = '—'
-            preview = 'Saisie directe du correcteur'
             if event[1] == 'Automatique':
                 result = event[4]
                 if ('awarded' in result and 'points' in result
                         and result['awarded'] is not None and result['points'] is not None):
                     score = result['awarded'] + ' / ' + result['points']
-                if 'answer' in result:
-                    preview = self.pedagogy_answer_preview(result['answer'])
             else:
                 grade = event[4]
                 score = str(grade[3])
@@ -2803,7 +2797,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     score += ' / ' + grade[4]
             row = document.createElement('TR')
             values = [nice_date(event[0]), event[1], event[2],
-                      self.pedagogy_question_label(event[3]), score, preview]
+                      self.pedagogy_question_label(event[3]), score]
             for value in values:
                 cell = document.createElement('TD')
                 cell.textContent = value
@@ -2881,6 +2875,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         label = document.getElementById('pedagogy_manual_label')
         current = document.getElementById('pedagogy_manual_current')
         automatic = document.getElementById('pedagogy_auto_current')
+        preview = document.getElementById('pedagogy_answer_preview')
         if node and node['has_points']:
             field.setAttribute('max', node['points'])
             label.textContent = 'Note sur ' + node['points'] + ' :'
@@ -2903,6 +2898,11 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                 + latest['awarded'] + ' / ' + latest['points'] + '.'
         else:
             automatic.textContent = 'Aucune proposition automatique pour cette question.'
+        answer = self.options['ANSWERS'][self.current_question]
+        answer_source = answer and answer[0] or ''
+        if self.source:
+            answer_source = self.source
+        preview.textContent = answer_source or 'Aucune réponse enregistrée.'
 
     def record_pedagogy_grade(self, event):
         """Record the current question grade, bounded by explicit points."""
