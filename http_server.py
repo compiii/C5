@@ -458,9 +458,12 @@ async def correction_export(request:Request) -> Response:
         raise session.exception('not_grader')
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Login', 'Nom', 'Participation', 'Note', 'Barème',
-                     'Correcteurs', 'Correction', 'Note automatique',
-                     'Correcteurs automatiques'])
+    writer.writerow(['Login', 'Nom', 'Minutes bonus', 'Participation',
+                     'Validations enregistrées', 'Note', 'Barème', 'Commentaires',
+                     'Version', 'Retour étudiant', 'Correcteurs',
+                     'Sorties de fenêtre', 'Durée hors fenêtre',
+                     'Plein écran autorisé', 'Correction', 'Note automatique',
+                     'Correcteurs automatiques', 'Fichiers'])
     if os.path.isdir(course.dir_log):
         for login in sorted(os.listdir(course.dir_log)):
             if not utilities.CONFIG.is_student(login):
@@ -474,6 +477,24 @@ async def correction_export(request:Request) -> Response:
             automatic = course.deferred_grade_summary(login)
             state = course.active_teacher_room.get(login)
             feedback = state.feedback if state else 0
+            bonus_time = state.bonus_time if state else 0
+            nr_answers = state.nr_answers if state else 0
+            nr_blurs = state.nr_blurs if state else 0
+            blur_time = state.blur_time if state else 0
+            fullscreen = state.fullscreen if state else 0
+            version = 'a'
+            if state and state.room:
+                room_parts = (state.room + ',?,?,?,a').split(',')
+                if len(room_parts) > 3:
+                    version = room_parts[3] or 'a'
+            student_dir = pathlib.Path(course.dir_log) / login
+            files = ' '.join(sorted(path.name for path in student_dir.iterdir()
+                                    if path.is_file() and '.' in path.name))
+            comments = 0
+            journal_path = student_dir / 'journal.log'
+            if journal_path.exists():
+                journal = common.Journal(journal_path.read_text(encoding='utf-8'))
+                comments = len([bubble for bubble in journal.bubbles if bubble.login])
             if feedback == 5:
                 correction = 'Finalisée'
             elif summary['has_manual'] and summary['has_automatic']:
@@ -486,9 +507,11 @@ async def correction_export(request:Request) -> Response:
                 correction = 'À corriger'
             else:
                 correction = 'Pas encore soumise'
-            writer.writerow([login, name, course.status(login), summary['score'],
-                             summary['maximum'], summary['graders'], correction,
-                             automatic['score'], automatic['graders']])
+            writer.writerow([login, name, bonus_time, course.status(login),
+                             nr_answers, summary['score'], summary['maximum'], comments,
+                             version, feedback, summary['graders'], nr_blurs,
+                             blur_time, fullscreen, correction, automatic['score'],
+                             automatic['graders'], files])
     response = answer('\ufeff' + output.getvalue(), content_type='text/csv')
     response.headers['Content-Disposition'] = (
         'attachment; filename="' + course.course.replace('=', '-') + '-notes.csv"')
