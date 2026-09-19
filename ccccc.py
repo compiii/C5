@@ -4216,8 +4216,12 @@ def grading_toggle(element):
 ccccc = CCCCC()
 def deferred_grade_message(event):
     """Receive an authenticated same-origin session batch command."""
-    if (event.origin == location.origin and event.data
+    if event.origin == location.origin and event.data == 'c5DeferredGradePing' and GRADING:
+        window.parent.postMessage('c5DeferredGradeReady', location.origin)
+    elif (event.origin == location.origin and event.data
             and event.data.c5DeferredGrade == 'copy' and GRADING):
         ccccc.request_deferred_scope(None, 'copy', True)
 window.addEventListener('message', deferred_grade_message)
+if GRADING and window.parent is not window:
+    window.parent.postMessage('c5DeferredGradeReady', location.origin)
 G = Grapic(ccccc)

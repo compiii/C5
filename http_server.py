@@ -426,7 +426,13 @@ async def deferred_grade_session(request:Request) -> Response:
                    + str(len(finalized)) + ' copie(s) finalisée(s) vont être rouvertes : '
                    + ', '.join(html.escape(login) for login in finalized)
                    + '. Il faudra les finaliser de nouveau.</p>')
-    return answer(session.header() + '<h1>Correction automatique différée</h1>'
+    alert_script = ''
+    if finalized:
+        alert_script = ('<script>alert("Attention : ' + str(len(finalized))
+                        + ' copie(s) finalisée(s) vont être rouvertes. '
+                        + 'Il faudra les finaliser de nouveau.")</script>')
+    return answer(session.header() + alert_script
+        + '<h1>Correction automatique différée</h1>'
         + warning + '<p id="progress">Préparation…</p>' + frames + '''<script>
         const frames = Array.from(document.querySelectorAll('iframe'));
         let done = 0;
@@ -439,12 +445,19 @@ async def deferred_grade_session(request:Request) -> Response:
           frame.dataset.started = '1';
           frame.contentWindow.postMessage({c5DeferredGrade: 'copy'}, location.origin);
         }
+        function ping(frame) {
+          frame.contentWindow.postMessage('c5DeferredGradePing', location.origin);
+        }
         for (const frame of frames) {
-          frame.onload = () => launch(frame);
-          if (frame.contentDocument && frame.contentDocument.readyState === 'complete') launch(frame);
+          frame.onload = () => ping(frame);
+          ping(frame);
         }
         addEventListener('message', event => {
-          if (event.origin === location.origin && event.data === 'c5DeferredGradeDone') {
+          if (event.origin !== location.origin) return;
+          if (event.data === 'c5DeferredGradeReady') {
+            const frame = frames.find(item => item.contentWindow === event.source);
+            if (frame) launch(frame);
+          } else if (event.data === 'c5DeferredGradeDone') {
             done += 1; refresh();
           }
         });
@@ -688,6 +701,8 @@ async def adm_participation(request:Request) -> Response:
     }
     rows = []
     for login in sorted(logins):
+        if not utilities.CONFIG.is_student(login):
+            continue
         try:
             profile = await utilities.USERS.infos(login)
             student_name = profile['sn'].upper() + ' ' + profile['fn'].title()

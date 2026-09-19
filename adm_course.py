@@ -47,6 +47,9 @@ def display(): # pylint: disable=too-many-locals,too-many-branches,too-many-stat
         text.append('<h2>Correction</h2><p><a href="/adm/correction_export/'
                     + COURSE + '?ticket=' + TICKET
                     + '">Exporter les notes des étudiants (CSV)</a></p>'
+                    + '<p><a href="/adm/answers/' + COURSE + '/'
+                    + students.join(',') + '/' + COURSE + '.zip?ticket=' + TICKET
+                    + '">Exporter les fichiers sources des étudiants (ZIP)</a></p>'
                     + '<p><a target="_blank" href="/deferred_grade_session/'
                     + COURSE + '?ticket=' + TICKET
                     + '">Lancer la correction automatique de toutes les copies</a></p>')
@@ -171,6 +174,8 @@ DIV[onclick]:hover { background: #EEE }
             pedagogy_grading = student.pedagogy_grading
             journal['grades'] = pedagogy_grading['score']
             journal['graders'] = pedagogy_grading['graders']
+            journal['automatic_score'] = student.automatic_score
+            journal['automatic_graders'] = student.automatic_graders
             automatic_grading = student.automatic_grading or False
             if journal['feedback'] == 5:
                 journal['grading_status'] = 'Finalisée'
