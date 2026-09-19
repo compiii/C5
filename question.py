@@ -16,6 +16,7 @@ class Question:
         self.worker = None
         self.__doc__ = self.__doc__ # Fix RapydScript problem
         self.current_random = []    # Current random for each question version
+        self.pedagogical_resources = []
     def display(self, message):
         """Display the message in the student feedback"""
         self.worker.post('tester', message)

@@ -1,6 +1,7 @@
 """Recursive pedagogical structure with a legacy flat-question projection."""
 
 PEDAGOGY_ID_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-'
+RESOURCE_SCOPES = ('question', 'exercise', 'session', 'group')
 # The CPython metadata pass overrides this flag. Browser question files must let
 # py2js create the ordinary flat Session; the server-provided options then attach
 # the richer tree to that worker.
@@ -37,6 +38,96 @@ def validate_points(points):
     return points
 
 
+def validate_resource_path(path):
+    """Return a safe relative resource path."""
+    if not path or path.startswith('/') or '\\' in path or '\x00' in path:
+        raise ValueError('Resource paths must be non-empty relative paths')
+    for part in path.split('/'):
+        if not part or part == '.' or part == '..':
+            raise ValueError('Invalid resource path: ' + path)
+    return path
+
+
+class Resource:
+    """A file-like input or output attached to a pedagogical question."""
+
+    def __init__(self, resource_id, path=None, name='', resource_type='text',
+                 language='', content=None, editable=True, hidden=False,
+                 generated=False, required=True, submitted=True,
+                 scope='question', actions=None, primary=False):
+        self.resource_id = validate_pedagogical_id(resource_id)
+        self.path = validate_resource_path(path or resource_id)
+        self.name = name or self.path
+        self.resource_type = resource_type or 'text'
+        self.language = language or ''
+        self.content = content
+        self.editable = bool(editable)
+        self.hidden = bool(hidden)
+        self.generated = bool(generated)
+        self.required = bool(required)
+        self.submitted = bool(submitted)
+        if scope not in RESOURCE_SCOPES:
+            raise ValueError('Invalid resource scope: ' + scope)
+        self.scope = scope
+        self.actions = actions or []
+        self.primary = bool(primary)
+
+
+def implicit_source_resource():
+    """Compatibility resource backed by default_answer/last_answer/source."""
+    return Resource('source', path='source', name='Source', content=None,
+                    primary=True)
+
+
+def resource_metadata(resource):
+    """Return the JSON-safe public contract for one resource."""
+    return {
+        'id': resource.resource_id,
+        'path': resource.path,
+        'name': resource.name,
+        'type': resource.resource_type,
+        'language': resource.language,
+        'content': resource.content,
+        'editable': resource.editable,
+        'read_only': not resource.editable,
+        'hidden': resource.hidden,
+        'generated': resource.generated,
+        'required': resource.required,
+        'submitted': resource.submitted,
+        'scope': resource.scope,
+        'actions': resource.actions,
+        'primary': resource.primary,
+        'legacy_source': resource.resource_id == 'source' and resource.content is None,
+    }
+
+
+def normalize_resources(resources, implicit_source):
+    """Validate resources and select their single primary editor resource."""
+    if resources is None:
+        resources = [implicit_source_resource()] if implicit_source else []
+    identifiers = {}
+    paths = {}
+    primary = None
+    normalized = []
+    for resource in resources:
+        if not isinstance(resource, Resource):
+            raise ValueError('Question resources must be Resource instances')
+        if resource.resource_id in identifiers:
+            raise ValueError('Duplicate resource identifier: ' + resource.resource_id)
+        if resource.path in paths:
+            raise ValueError('Duplicate resource path: ' + resource.path)
+        identifiers[resource.resource_id] = True
+        paths[resource.path] = True
+        if resource.primary:
+            if primary is not None:
+                raise ValueError('A question may have only one primary resource')
+            primary = resource
+        pedagogy_append(normalized, resource)
+    if primary is None and normalized:
+        normalized[0].primary = True
+    return normalized
+
+
 class PedagogicalNode:
     """A structural node; subclasses define its pedagogical kind."""
     kind = 'section'
@@ -50,6 +141,7 @@ class PedagogicalNode:
         self.points = validate_points(points)
         self.cumulative_points = cumulative_points
         self.question = None
+        self.resources = []
 
 
 class Exercise(PedagogicalNode):
@@ -79,10 +171,11 @@ class QuestionNode(PedagogicalNode):
     kind = 'question'
 
     def __init__(self, node_id, question=None, title='', children=None, points=None,
-                 cumulative_points=False):
+                 cumulative_points=False, resources=None):
         PedagogicalNode.__init__(self, node_id, title, children, points,
                                  cumulative_points)
         self.question = question
+        self.resources = normalize_resources(resources, question is not None)
 
 
 def flatten_pedagogy(value):
@@ -112,6 +205,7 @@ def flatten_pedagogy(value):
             node.question.pedagogical_id = node.node_id
             node.question.pedagogical_title = node.title
             node.question.pedagogical_points = node.points
+            node.question.pedagogical_resources = node.resources
             pedagogy_append(questions, node.question)
         children = []
         total = node.points
@@ -136,6 +230,7 @@ def flatten_pedagogy(value):
             'cumulative_points': node.cumulative_points,
             'display_points': display_points,
             'answer_index': index,
+            'resources': [resource_metadata(resource) for resource in node.resources],
             'children': children,
         }
 
@@ -152,6 +247,7 @@ def flatten_pedagogy(value):
             question.pedagogical_id = node_id
             question.pedagogical_title = question.__doc__ or ''
             question.pedagogical_points = 0
+            question.pedagogical_resources = normalize_resources(None, True)
             pedagogy_append(questions, question)
             pedagogy_append(metadata_roots, {
                 'id': node_id,
@@ -163,6 +259,8 @@ def flatten_pedagogy(value):
                 'cumulative_points': False,
                 'display_points': 0,
                 'answer_index': index,
+                'resources': [resource_metadata(resource)
+                              for resource in question.pedagogical_resources],
                 'children': [],
             })
 
@@ -173,7 +271,7 @@ def flatten_pedagogy(value):
     for question in questions:
         pedagogy_append(flat_ids, question.pedagogical_id)
     return questions, {
-        'schema': 1,
+        'schema': 2,
         'explicit': explicit,
         'roots': metadata_roots,
         'flat_ids': flat_ids,

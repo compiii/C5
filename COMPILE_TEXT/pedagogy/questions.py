@@ -74,7 +74,17 @@ def build_pedagogy():
     return Exercise('exercise.structure', 'Exercice structuré', [
         Section('section.analysis', 'Analyse', [
             QuestionNode('question.context', QContext(), 'Contexte', [
-                QuestionNode('question.detail', QDetail(), 'Détail', None, 1),
+                QuestionNode('question.detail', QDetail(), 'Détail', None, 1,
+                    resources=[
+                        Resource('source', name='Réponse', language='text',
+                                 primary=True),
+                        Resource('notes', path='notes.txt', name='Notes de travail',
+                                 content='Notes facultatives\n', required=False,
+                                 submitted=False),
+                        Resource('consigne', path='consigne.txt', name='Consigne',
+                                 content='Expliquez le titre en une phrase.\n',
+                                 editable=False, required=False, submitted=False),
+                    ]),
             ], 2),
         ]),
         QuestionNode('question.conclusion', QConclusion(), 'Conclusion', None, 3),

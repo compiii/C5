@@ -35,6 +35,8 @@ for question in question_instances: # pylint: disable=undefined-variable
             'id': question.pedagogical_id,
             'title': question.pedagogical_title or question.__doc__ or '',
             'points': question.pedagogical_points,
+            'resources': [resource_metadata(resource)
+                          for resource in question.pedagogical_resources],
             'notation_a': notation_a,
             'notation_b': notation_b
         })

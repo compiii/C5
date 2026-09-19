@@ -15,6 +15,16 @@ def onmessage(event):
         elif event.data[0] == 'source':
             Compile.worker.questions[event.data[1]].last_answer = event.data[2]
             Compile.worker.source = event.data[2]
+            for resource in Compile.worker.questions[event.data[1]].pedagogical_resources:
+                if resource.primary:
+                    Compile.worker.resources_by_question[event.data[1]][resource.resource_id] = event.data[2]
+        elif event.data[0] == 'resource':
+            question = event.data[1]
+            resource_id = event.data[2]
+            content = event.data[3]
+            Compile.worker.resources_by_question[question][resource_id] = content
+            if question == Compile.worker.current_question:
+                Compile.worker.resources = Compile.worker.resources_by_question[question]
         elif event.data[0] == 'indent':
             Compile.worker.run_indent(event.data[1])
         elif event.data[0] == 'reset':
@@ -73,6 +83,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
     phase = None
     nr_input = None
     options = {}
+    resources = {}
+    resources_by_question = {}
     default_options = {} # Default options for the compiler can be defined here
 
     def __init__(self, questions):
@@ -83,6 +95,8 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         self.allow_tip = True
         self.allow_goto = True
         self.pedagogy_states = {}
+        self.resources = {}
+        self.resources_by_question = {}
 
     def init(self):
         """Your own compiler init, for example:
@@ -138,6 +152,15 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
                     )
             else:
                 quest.random_seed(0) # For session admin page
+            resources = {}
+            for resource in quest.pedagogical_resources:
+                content = resource.content
+                if content is None:
+                    content = ''
+                resources[resource.resource_id] = content
+                if resource.primary:
+                    resources[resource.resource_id] = quest.last_answer or quest.default_answer()
+            self.resources_by_question[i] = resources
             current_seed = quest.seed
         self.current_question = self.current_question_max
         quest = self.questions[self.current_question]
@@ -157,6 +180,9 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
     def run(self, source):
         """Get the source code and do all the jobs"""
         self.post('state', "started")
+        for resource in self.quest.pedagogical_resources:
+            if resource.primary:
+                self.resources[resource.resource_id] = source
         try:
             if source == self.previous_source and source != '':
                 self.run_after_compile()
@@ -227,6 +253,7 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         if self.current_question < 0:
             return
         self.quest = quest = self.questions[self.current_question]
+        self.resources = self.resources_by_question[self.current_question]
         quest.random_restart()
         self.post('default', [quest.index, quest.default_answer()])
         quest.random_restart()
@@ -505,6 +532,57 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
             return 'visited'
         return 'unvisited'
 
+    def pedagogy_current_resources(self):
+        """Return resources declared by the current answerable node."""
+        def find(node):
+            if node['answer_index'] == self.current_question:
+                if 'resources' in node:
+                    return node['resources']
+                return []
+            for child in node['children']:
+                resources = find(child)
+                if resources is not None:
+                    return resources
+            return None
+        for root in self.pedagogy['roots']:
+            resources = find(root)
+            if resources is not None:
+                return resources
+        return []
+
+    def pedagogy_resource_tree_content(self):
+        """Render the work tree independently from pedagogical navigation."""
+        resources = self.pedagogy_current_resources()
+        visible = []
+        for resource in resources:
+            if not resource['hidden']:
+                pedagogy_append(visible, resource)
+        if not visible:
+            return ''
+        content = ['<div class="pedagogy_resources" aria-label="Fichiers de la question">',
+                   '<div class="pedagogy_resources_title">Fichiers</div>']
+        for resource in visible:
+            html_class = ['pedagogy_resource']
+            if resource['primary']:
+                pedagogy_append(html_class, 'current')
+            if resource['read_only']:
+                pedagogy_append(html_class, 'read_only')
+            label = resource['name'] or resource['path']
+            badges = ''
+            if resource['read_only']:
+                badges += '<span title="Lecture seule">verrouillé</span>'
+            if resource['generated']:
+                badges += '<span>généré</span>'
+            if not resource['submitted']:
+                badges += '<span>hors remise</span>'
+            pedagogy_append(content,
+                '<div class="' + ' '.join(html_class) + '" data-resource-id="'
+                + resource['id'] + '" onclick="ccccc.select_pedagogy_resource(\''
+                + resource['id'] + '\')"><code>' + self.escape(label) + '</code>'
+                + '<span class="pedagogy_resource_badges">' + badges + '</span></div>')
+        pedagogy_append(content, '</div>')
+        return ''.join(content)
+
     def pedagogy_index_initial_content(self):
         """Tree navigation for explicitly structured sessions."""
         content = ["""
@@ -529,6 +607,13 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
             .pedagogy_controls { position:sticky; top:0; z-index:1; display:flex;
                 gap:0.35em; padding:0.35em; background:#FFF; border-bottom:1px solid #AAA }
             .pedagogy_controls button { cursor:pointer; flex:1 }
+            .pedagogy_resources { margin-top:0.6em; border-top:2px solid #AAA }
+            .pedagogy_resources_title { padding:0.4em; font-weight:bold; background:#F4F4F4 }
+            .pedagogy_resource { display:flex; justify-content:space-between; gap:0.5em;
+                padding:0.35em 0.6em; border-top:1px solid #DDD }
+            .pedagogy_resource.current { background:#E8F3FF }
+            .pedagogy_resource.read_only code:before { content:'🔒 '; font-family:sans-serif }
+            .pedagogy_resource_badges { color:#666; font-size:75%; display:flex; gap:0.4em }
             </style><div class="pedagogy_tree">
             <div class="pedagogy_controls">
               <button onclick="ccccc.pedagogy_previous()" title="Question précédente">←</button>
@@ -539,5 +624,6 @@ class Compile: # pylint: disable=too-many-instance-attributes,too-many-public-me
         """]
         for root in self.pedagogy['roots']:
             pedagogy_append(content, self.pedagogy_node_content(root, 0))
+        pedagogy_append(content, self.pedagogy_resource_tree_content())
         pedagogy_append(content, '</div>')
         return ''.join(content)

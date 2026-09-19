@@ -273,6 +273,9 @@ class CCCCC: # pylint: disable=too-many-public-methods
     options = {}
     last_save = 0
     allow_edit = 0
+    current_resource_id = 'source'
+    current_resource_primary_id = 'source'
+    current_resource_editable = True
     version = 0 # version being graded
     nr_grades = None
     grading = None
@@ -982,6 +985,8 @@ class CCCCC: # pylint: disable=too-many-public-methods
         trace('CCCCC: compilation_run', self.compile_now, self.init_done, not self.question.firstChild)
         if not self.can_edit_current_question():
             return
+        if self.current_resource_id != self.current_resource_primary_id:
+            return
         if not self.question.firstChild:
             return
         if memorize_input:
@@ -1101,6 +1106,18 @@ class CCCCC: # pylint: disable=too-many-public-methods
         # SHARED_WORKER.debug("Diff begin")
         old = JOURNAL.content
         replace = self.source
+        if self.current_resource_id != self.current_resource_primary_id:
+            if self.current_resource_id in self.journal_question.resources:
+                old = self.journal_question.resources[self.current_resource_id]
+            else:
+                old = self.pedagogy_resource_initial_content(self.current_resource_id)
+            if old == replace:
+                return
+            self.set_pedagogy_state('started')
+            SHARED_WORKER.resource(self.current_resource_id, replace)
+            self.worker.postMessage(['resource', self.current_question,
+                                     self.current_resource_id, replace])
+            return
         if old == replace:
             return
         self.set_pedagogy_state('started')
@@ -2816,6 +2833,65 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
                     return node
         return None
 
+    def pedagogy_resources_for_question(self):
+        """Return current resource descriptors, including legacy fallback."""
+        node = self.pedagogy_metadata_for_question(self.current_question)
+        if node and 'resources' in node:
+            return node['resources']
+        return []
+
+    def pedagogy_resource(self, resource_id):
+        for resource in self.pedagogy_resources_for_question():
+            if resource['id'] == resource_id:
+                return resource
+        return None
+
+    def pedagogy_resource_initial_content(self, resource_id):
+        resource = self.pedagogy_resource(resource_id)
+        if resource and resource['content'] is not None:
+            return resource['content']
+        return ''
+
+    def reset_pedagogy_resource(self):
+        """Select the primary resource whenever the pedagogical question changes."""
+        self.current_resource_id = 'source'
+        self.current_resource_primary_id = 'source'
+        self.current_resource_editable = True
+        for resource in self.pedagogy_resources_for_question():
+            if resource['primary']:
+                self.current_resource_id = resource['id']
+                self.current_resource_primary_id = resource['id']
+                self.current_resource_editable = resource['editable']
+                break
+        for resource_id in self.journal_question.resources:
+            self.worker.postMessage(['resource', self.current_question, resource_id,
+                                     self.journal_question.resources[resource_id]])
+
+    def select_pedagogy_resource(self, resource_id):
+        """Persist the current editor and display another question resource."""
+        resource = self.pedagogy_resource(resource_id)
+        if not resource or resource['hidden'] or resource_id == self.current_resource_id:
+            return
+        self.update_source()
+        self.current_resource_id = resource_id
+        self.current_resource_editable = resource['editable']
+        if resource_id == self.current_resource_primary_id:
+            content = JOURNAL.content
+        elif resource_id in self.journal_question.resources:
+            content = self.journal_question.resources[resource_id]
+        else:
+            content = self.pedagogy_resource_initial_content(resource_id)
+        self.set_editor_content(content, position=0)
+        self.apply_pedagogy_access()
+
+    def update_pedagogy_resource_selection(self):
+        """Keep the work-tree highlight after an index rerender."""
+        for element in document.getElementsByClassName('pedagogy_resource'):
+            if element.getAttribute('data-resource-id') == self.current_resource_id:
+                element.classList.add('current')
+            else:
+                element.classList.remove('current')
+
     def pedagogy_scope_score(self, questions):
         """Return the effective score: manual decision, otherwise auto proposal."""
         latest = {}
@@ -3025,6 +3101,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             self.journal_question = JOURNAL.questions[the_question]
             if not self.journal_question:
                 return
+            self.reset_pedagogy_resource()
             self.set_pedagogy_state('visited')
             self.apply_pedagogy_access()
             if self.journal_question.start + 1 == self.journal_question.head:
@@ -3475,6 +3552,7 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
             if index not in JOURNAL.questions and REAL_GRADING:
                 self.popup_message("L'étudiant n'a pas regardé cette question.\nChoisissez en une autre.")
                 return
+            self.update_source()
             self.unlock_worker()
             #if self.in_past_history:
             #    JOURNAL.pop()
@@ -3515,20 +3593,22 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
 
     def can_edit_current_question(self):
         """Keep navigation/copy available while completed work is read-only."""
-        return self.allow_edit and not self.pedagogy_question_completed()
+        return (self.allow_edit and self.current_resource_editable
+                and not self.pedagogy_question_completed())
 
     def apply_pedagogy_access(self):
         """Synchronize editor and progression buttons with completion state."""
         if not self.editor:
             return
         completed = self.pedagogy_question_completed()
-        editable = self.allow_edit and not completed
+        editable = self.allow_edit and self.current_resource_editable and not completed
         self.editor.setAttribute('contenteditable', editable and 'true' or 'false')
         self.editor.setAttribute('aria-readonly', editable and 'false' or 'true')
+        self.update_pedagogy_resource_selection()
         complete = document.getElementById('pedagogy_complete')
         reopen = document.getElementById('pedagogy_reopen')
         if complete:
-            complete.disabled = not editable
+            complete.disabled = not self.allow_edit or completed
         if reopen:
             reopen.disabled = not self.allow_edit or not completed
 
@@ -3678,7 +3758,8 @@ Tirez le bas droite pour agrandir."></TEXTAREA>'''
         self.highlight_errors = {}
         self.do_coloring = "set_editor_content"
         self.source = message
-        self.update_save_history()
+        if self.current_resource_id == self.current_resource_primary_id:
+            self.update_save_history()
 
     def record_error(self, data):
         """Record an error"""

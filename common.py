@@ -272,6 +272,7 @@ def parse_grading(history, fast=False):
 #    'b<description> # A bubble comment
 #    'd<defaultraw>' # The default text to use (question creation or use the new default)
 #    'R'             # Question next round.
+#    'r<id> <text>'  # Snapshot of a non-primary pedagogical resource.
 
 class QuestionStats:
     def __init__(self):
@@ -286,6 +287,7 @@ class QuestionStats:
         self.last_tagged_source = ''    # The last saved source (for green diff)
         self.round = 0                  # Question round (+1 when student asks next version)
         self.form = False
+        self.resources = {}             # Latest content by non-primary resource id
     def can_put(self, position, char='0'):
         return (
             self.current_can_put[position] == '✽'
@@ -357,6 +359,7 @@ class Journal:
             'd': bind(self.action_d, self),
             'R': bind(self.action_R, self),
             'E': bind(self.action_E, self),
+            'r': bind(self.action_r, self),
         }
         self.questions = {}
         self.cache = {}
@@ -485,7 +488,7 @@ class Journal:
             if action in 'PIDLbHd': # Position/Insert/Delete/Line/Bubble/Height/Default
                 lines.append(line)
                 index -= 1
-            elif action in 'TOC#ScgtFBRE':
+            elif action in 'TOC#ScgtFBREr':
                 # Time/Open/Close/Debug/compile/good/tag/Focus/Blur/Round
                 index -= 1
                 if index < 0:
@@ -577,6 +580,15 @@ class Journal:
             node_id = parts[1]
         if node_id and state in ('visited', 'started', 'saved', 'completed'):
             self.pedagogy_states[node_id] = state
+
+    def action_r(self, value, _start):
+        """Store a complete snapshot of one non-primary question resource."""
+        separator = value.find(' ')
+        if separator <= 0 or self.question is None:
+            return
+        resource_id = value[:separator]
+        content = unprotect_crlf(value[separator + 1:])
+        self.questions[self.question].resources[resource_id] = content
 
     def evaluate_fast(self, lines):
         """Evaluate all these lines in the current state"""
@@ -1879,6 +1891,10 @@ def create_shared_worker(login='', hook=None, readonly=False):
         """Record progression using a stable pedagogical identifier."""
         shared_worker.post('E' + state + ' ' + node_id)
     shared_worker.pedagogy_state = shared_worker_pedagogy_state
+    def shared_worker_resource(resource_id, content):
+        """Record the latest complete content of a secondary resource."""
+        shared_worker.post('r' + resource_id + ' ' + protect_crlf(content))
+    shared_worker.resource = shared_worker_resource
     def shared_worker_bubble(login, pos_start, pos_end, line, column, width, height, comment):
         """bubble text"""
         shared_worker.post('b+' + login + ' ' + pos_start + ' ' + pos_end + ' ' + line + ' ' + column
