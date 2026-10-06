@@ -93,6 +93,7 @@ DEFAULT_COURSE_OPTIONS = [
     ['sql_result_format', 'html', "SQL result format: html or text"],
     ['sql_single_select', 0, "Require exactly one SELECT statement"],
     ['sql_check_semicomma', 1, "Require SQL input to end with a semicolon"],
+    ['sql_permissive_group_by', 0, "Keep non-grouped selected columns with FIRST"],
     ['display_tag',          1, "display 'icon_tag'"],
     ['display_history',      1, "display version history"],
     ['display_indent',       1, "display the F8 button"],

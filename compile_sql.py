@@ -45,6 +45,54 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
         return source.replace(
             RegExp("\\bAS\\s+'([^'\\n]+)'", 'gi'), 'AS [$1]')
 
+    def column_is_grouped(self, column, groups):
+        """Return whether a selected column is already a grouping key."""
+        for group in groups:
+            if group.columnid != column.columnid:
+                continue
+            if (not group.tableid or not column.tableid
+                    or group.tableid == column.tableid):
+                return True
+        return False
+
+    def make_group_by_permissive(self, statement):
+        """Keep simple selected columns using the first row of each group."""
+        changed = False
+        if statement.group:
+            for index, column in enumerate(statement.columns):
+                if (not column.columnid or column.columnid == '*'
+                        or self.column_is_grouped(column, statement.group)):
+                    continue
+                aggregate = Object.create(alasql.yy.AggrValue.prototype)
+                aggregate.aggregatorid = 'FIRST'
+                aggregate.expression = column
+                aggregate['as'] = column['as'] or column.columnid
+                if column['as']:
+                    del column['as']
+                statement.columns[index] = aggregate
+                changed = True
+        for child_name in ('union', 'unionall', 'intersect', 'except'):
+            child = statement[child_name]
+            if child and self.make_group_by_permissive(child):
+                changed = True
+        return changed
+
+    def normalize_group_by(self, source):
+        """Apply the optional MySQL-like permissive GROUP BY behavior."""
+        if not self.options['sql_permissive_group_by']:
+            return source
+        syntax_tree = alasql.parse(source)
+        changed = False
+        for statement in syntax_tree.statements:
+            if self.make_group_by_permissive(statement):
+                changed = True
+        if not changed:
+            return source
+        statements = []
+        for statement in syntax_tree.statements:
+            statements.append(statement.toString())
+        return ';'.join(statements)
+
     def text_table(self, result):
         """Render rows like the text output of a command-line SQL client."""
         columns = []
@@ -113,6 +161,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             self.normalize_database_nulls()
             source = self.quest.normalize_sql(source)
             source = self.normalize_aliases(source)
+            source = self.normalize_group_by(source)
             # pylint: disable=eval-used
             executable = eval('alasql(' + JSON.stringify(source) + ')')
             # AlaSQL returns rows directly for one SELECT, but one item per
