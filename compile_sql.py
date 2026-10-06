@@ -24,6 +24,27 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             value += ' '
         return value
 
+    def normalize_database_nulls(self):
+        """Turn numeric NaN values produced from SQL NULL back into nulls."""
+        for database_name in Object.keys(alasql.databases):
+            tables = alasql.databases[database_name].tables
+            for table_name in Object.keys(tables):
+                rows = tables[table_name].data
+                if not rows:
+                    continue
+                for row in rows:
+                    for key in row:
+                        # NaN is the only JavaScript value unequal to itself.
+                        if row[key] != row[key]:
+                            row[key] = None
+
+    def normalize_aliases(self, source):
+        """Accept standard and MySQL quoted aliases with AlaSQL."""
+        source = source.replace(
+            RegExp('\\bAS\\s+"([^"\\n]+)"', 'gi'), 'AS [$1]')
+        return source.replace(
+            RegExp("\\bAS\\s+'([^'\\n]+)'", 'gi'), 'AS [$1]')
+
     def text_table(self, result):
         """Render rows like the text output of a command-line SQL client."""
         columns = []
@@ -36,7 +57,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             width = len(str(key))
             for row in result:
                 serialized = JSON.stringify(row[key])
-                if serialized:
+                if serialized and serialized != 'null':
                     value = str(row[key])
                 else:
                     value = 'NULL'
@@ -57,7 +78,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             line = '|'
             for index, key in enumerate(columns):
                 serialized = JSON.stringify(row[key])
-                if serialized:
+                if serialized and serialized != 'null':
                     value = str(row[key])
                 else:
                     value = 'NULL'
@@ -89,7 +110,9 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
             database = self.quest.sql_database()
             if database:
                 eval('alasql(' + JSON.stringify(database) + ')')
+            self.normalize_database_nulls()
             source = self.quest.normalize_sql(source)
+            source = self.normalize_aliases(source)
             # pylint: disable=eval-used
             executable = eval('alasql(' + JSON.stringify(source) + ')')
             # AlaSQL returns rows directly for one SELECT, but one item per
@@ -141,7 +164,7 @@ class Session(Compile): # pylint: disable=undefined-variable,invalid-name
                         content.append('<tr>')
                         for key in columns:
                             serialized = JSON.stringify(line[key])
-                            if serialized:
+                            if serialized and serialized != 'null':
                                 value = html(str(line[key]))
                             else:
                                 value = '<i>NULL</i>'
